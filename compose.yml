@@ -37,10 +37,13 @@ services:
     ports:
       - "80:80"
       - "3001:3001"
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=production
-      - EENABLE_SERVER_STORAGE=${ENABLE_SERVER_STORAGE:-true}
+      - ENABLE_SERVER_STORAGE=${ENABLE_SERVER_STORAGE:-true}
       - STORAGE_PATH=/data/diagrams
       - ENABLE_GIT_BACKUP=${ENABLE_GIT_BACKUP:-false}
+      - JWT_SECRET= supersecretkey
     volumes:
       - ./diagrams:/data/diagrams
