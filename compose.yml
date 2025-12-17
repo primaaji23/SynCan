@@ -12,23 +12,35 @@
 #     volumes:
 #       - ./diagrams:/data/diagrams
 
-version: "3.8"
+# services:
+#   backend:
+#     build: ./packages/fossflow-backend
+#     container_name: arca-backend
+#     ports:
+#       - "3001:3001"
+#     environment:
+#       NODE_ENV: production
+#     restart: unless-stopped
+
+#   frontend:
+#     build: ./packages/fossflow-app
+#     container_name: arca-frontend
+#     ports:
+#       - "8080:80"
+#     depends_on:
+#       - backend
+#     restart: unless-stopped
 
 services:
-  backend:
-    build: ./packages/fossflow-backend
-    container_name: arca-backend
+  fossflow:
+    build: .
     ports:
+      - "3000:80"
       - "3001:3001"
     environment:
-      NODE_ENV: production
-    restart: unless-stopped
-
-  frontend:
-    build: ./packages/fossflow-app
-    container_name: arca-frontend
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
+      - NODE_ENV=development
+      - ENABLE_SERVER_STORAGE=true
+      - STORAGE_PATH=/data/diagrams
+      - ENABLE_GIT_BACKUP=false
+    volumes:
+      - ./diagrams:/data/diagrams
