@@ -16,6 +16,18 @@ export interface StorageService {
   createDiagram(data: Model): Promise<string>;
 }
 
+//Helper to get auth headers
+function authHeaders(): HeadersInit {
+  const headers: HeadersInit = {};
+
+  const token = localStorage.getItem("token");
+  if (token) {
+    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
 // Server Storage Implementation
 class ServerStorage implements StorageService {
   private baseUrl: string;
@@ -29,6 +41,7 @@ class ServerStorage implements StorageService {
     const isDevelopment = window.location.hostname === 'localhost' && window.location.port === '3000';
     this.baseUrl = baseUrl || (isDevelopment ? 'http://localhost:3001' : '');
   }
+  
 
   async isAvailable(): Promise<boolean> {
     // Re-check availability if cache is stale
@@ -60,7 +73,11 @@ class ServerStorage implements StorageService {
 
   async listDiagrams(): Promise<DiagramInfo[]> {
     console.log(`Fetching diagrams from: ${this.baseUrl}/api/diagrams`);
-    const response = await fetch(`${this.baseUrl}/api/diagrams`);
+    const response = await fetch(`${this.baseUrl}/api/diagrams`, {
+      headers: {
+        ...authHeaders(),
+      },
+    });
     console.log(`Response status: ${response.status}`);
 
     if (!response.ok) {
@@ -83,7 +100,7 @@ class ServerStorage implements StorageService {
     try {
       const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...authHeaders(),'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(10000) // 10 second timeout
       });
 
@@ -107,7 +124,7 @@ class ServerStorage implements StorageService {
     try {
       const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...authHeaders(),'Content-Type': 'application/json' },
         body: JSON.stringify(data),
         signal: AbortSignal.timeout(15000) // 15 second timeout for saves
       });
@@ -127,7 +144,10 @@ class ServerStorage implements StorageService {
 
   async deleteDiagram(id: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: {
+        ...authHeaders(),
+        },
     });
     if (!response.ok) throw new Error('Failed to delete diagram');
   }
@@ -135,7 +155,7 @@ class ServerStorage implements StorageService {
   async createDiagram(data: Model): Promise<string> {
     const response = await fetch(`${this.baseUrl}/api/diagrams`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...authHeaders(),'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
     if (!response.ok) throw new Error('Failed to create diagram');
