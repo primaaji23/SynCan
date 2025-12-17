@@ -144,7 +144,7 @@ app.post("/api/auth/login", async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Database error" });
   }
-});S
+});
 
 // ===== HEALTH =====
 app.get("/api/storage/status", (req, res) => {

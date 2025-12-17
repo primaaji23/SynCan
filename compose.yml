@@ -45,5 +45,7 @@ services:
       - STORAGE_PATH=/data/diagrams
       - ENABLE_GIT_BACKUP=${ENABLE_GIT_BACKUP:-false}
       - JWT_SECRET= supersecretkey
+      - DB_HOST=host.docker.internal
+      - DB_PORT=3306
     volumes:
       - ./diagrams:/data/diagrams
