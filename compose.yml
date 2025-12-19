@@ -15,6 +15,7 @@
 services:
   fossflow:
     build: .
+    restart: unless-stopped
     ports:
       - "80:80"
       - "3001:3001"

@@ -41,6 +41,7 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
-    "dom-to-image-more": "^3.7.1"
+    "dom-to-image-more": "^3.7.1",
+    "fossflow": "^1.7.0"
   }
 }
