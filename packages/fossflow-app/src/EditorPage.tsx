@@ -67,7 +67,18 @@ function EditorPage() {
   ];
 
   const [diagramData, setDiagramData] = useState<DiagramData>(() => {
-    // Initialize with last opened data if available
+    // If using server storage, start with empty data
+    if (storageManager.isServerStorage?.()) {
+      return {
+        title: 'Untitled Diagram',
+        icons: coreIcons,
+        colors: defaultColors,
+        items: [],
+        views: [],
+        fitToScreen: true
+      };
+    }
+
     const lastOpenedData = localStorage.getItem('fossflow-last-opened-data');
     if (lastOpenedData) {
       try {
@@ -87,7 +98,6 @@ function EditorPage() {
       }
     }
 
-    // Default state if no saved data
     return {
       title: 'Untitled Diagram',
       icons: coreIcons,
@@ -559,7 +569,25 @@ function EditorPage() {
 
     // Update diagramData and key together
     // This ensures Isoflow gets the correct data with the new key
-    setDiagramData(mergedData);
+    // setDiagramData(mergedData);
+    setDiagramData({
+      title: 'Loading...',
+      icons: [],
+      colors: defaultColors,
+      items: [],
+      views: [],
+      fitToScreen: true
+    });
+
+    setTimeout(() => {
+      setDiagramName(newDiagram.name);
+      setCurrentDiagram(newDiagram);
+      setCurrentModel(mergedData);
+      setDiagramData(mergedData);
+      setHasUnsavedChanges(false);
+      setFossflowKey(prev => prev + 1);
+    }, 0);
+
     setFossflowKey((prev) => {
       const newKey = prev + 1;
       console.log(`App: Updated fossflowKey from ${prev} to ${newKey}`);
@@ -576,6 +604,7 @@ function EditorPage() {
 
   // Auto-save functionality
   useEffect(() => {
+    if (serverStorageAvailable) return;
     if (isReadOnly) return;
     if (!currentModel || !hasUnsavedChanges || !currentDiagram) return;
 
@@ -598,43 +627,53 @@ function EditorPage() {
         fitToScreen: true
       };
 
-      const updatedDiagram: SavedDiagram = {
-        ...currentDiagram,
-        data: savedData,
-        updatedAt: new Date().toISOString()
-      };
+      // const updatedDiagram: SavedDiagram = {
+      //   ...currentDiagram,
+      //   data: savedData,
+      //   updatedAt: new Date().toISOString()
+      // };
 
-      setDiagrams((prevDiagrams) => {
-        return prevDiagrams.map((d) => {
-          return d.id === currentDiagram.id ? updatedDiagram : d;
-        });
-      });
+      // setDiagrams((prevDiagrams) => {
+      //   return prevDiagrams.map((d) => {
+      //     return d.id === currentDiagram.id ? updatedDiagram : d;
+      //   });
+      // });
 
-      // Update last opened data
-      try {
-        localStorage.setItem(
-          'fossflow-last-opened-data',
-          JSON.stringify(savedData)
-        );
-        setLastAutoSave(new Date());
-        setHasUnsavedChanges(false);
-      } catch (e) {
-        console.error('Auto-save failed:', e);
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-          alert(t('alert.autoSaveFailed'));
-          setShowStorageManager(true);
-        }
-      }
+      // // Update last opened data
+      // try {
+      //   localStorage.setItem(
+      //     'fossflow-last-opened-data',
+      //     JSON.stringify(savedData)
+      //   );
+      //   setLastAutoSave(new Date());
+      //   setHasUnsavedChanges(false);
+      // } catch (e) {
+      //   console.error('Auto-save failed:', e);
+      //   if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      //     alert(t('alert.autoSaveFailed'));
+      //     setShowStorageManager(true);
+      //   }
+      // }
+
+      localStorage.setItem(
+        'fossflow-last-opened-data',
+        JSON.stringify(savedData)
+      );
+
+      setLastAutoSave(new Date());
+      setHasUnsavedChanges(false);
     }, 5000); // Auto-save after 5 seconds of changes
 
     return () => {
       return clearTimeout(autoSaveTimer);
     };
-  }, [currentModel, hasUnsavedChanges, currentDiagram, diagramName]);
+  }, [serverStorageAvailable, currentModel, hasUnsavedChanges, currentDiagram, diagramName]);
 
   // Warn before closing if there are unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isReadOnly) return;
+      
       if (hasUnsavedChanges) {
         e.preventDefault();
         e.returnValue = t('alert.beforeUnload');
@@ -646,25 +685,33 @@ function EditorPage() {
     return () => {
       return window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [hasUnsavedChanges]);
+  }, [hasUnsavedChanges, isReadOnly]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+S or Cmd+S for Save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        if (isReadOnly) {
-          e.preventDefault();
+      //  READ-ONLY MODE
+      if (isReadOnly) {
+        // hanya izinkan 'm'
+        if (e.key.toLowerCase() === 'm') {
           return;
         }
 
+        //  blok semua shortcut lain
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // WRITE MODE
+
+      // Ctrl+S or Cmd+S for Save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
 
-        // Quick save if current diagram exists and has unsaved changes
         if (currentDiagram && hasUnsavedChanges) {
           saveDiagram();
         } else {
-          // Otherwise show save dialog
           setShowSaveDialog(true);
         }
       }
@@ -676,11 +723,17 @@ function EditorPage() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    // capture phase
+    window.addEventListener('keydown', handleKeyDown, true);
+
     return () => {
-      return window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [currentDiagram, hasUnsavedChanges]);
+  }, [
+    isReadOnly,
+    currentDiagram,
+    hasUnsavedChanges
+  ]);
 
   return (
     <div className="App">
@@ -694,6 +747,26 @@ function EditorPage() {
             }}
           >
             🔒 Read Only (User)
+            <span style={{marginLeft: '10px'}}>
+                <button
+                  onClick={() => {
+                    return setShowDiagramManager(true);
+                  }}
+                  style={{ backgroundColor: '#2196F3', color: 'white' }}
+                >
+                  🌐 {t('nav.serverStorage')}
+                </button>
+                </span>
+              <span style={{marginLeft: '10px'}}>
+                <button
+                  onClick={() => {
+                    return setShowExportDialog(true);
+                  }}
+                  style={{ backgroundColor: '#007bff' }}
+                >
+                  💾 {t('nav.exportFile')}
+                </button>
+              </span>
           </div>
         )}
         {!isReadOnly && (
@@ -798,7 +871,7 @@ function EditorPage() {
             marginLeft: "auto"
           }}
         >
-          🚪 Logout
+          Logout
         </button>
       </div>
 

@@ -95,29 +95,63 @@ class ServerStorage implements StorageService {
     }));
   }
 
+  // async loadDiagram(id: string): Promise<Model> {
+  //   console.log(`ServerStorage: Loading diagram ${id} from ${this.baseUrl}/api/diagrams/${id}`);
+  //   try {
+  //     const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
+  //       method: 'GET',
+  //       headers: { ...authHeaders(),'Content-Type': 'application/json' },
+  //       signal: AbortSignal.timeout(10000) // 10 second timeout
+  //     });
+
+  //     if (!response.ok) {
+  //       const errorText = await response.text();
+  //       console.error(`ServerStorage: Failed to load diagram ${id}: ${response.status} ${errorText}`);
+  //       throw new Error(`Failed to load diagram: ${response.status} ${errorText}`);
+  //     }
+
+  //     const data = await response.json();
+  //     console.log(`ServerStorage: Successfully loaded diagram ${id}, items: ${data.items?.length || 0}`);
+  //     return data;
+  //   } catch (error) {
+  //     console.error(`ServerStorage: Error loading diagram ${id}:`, error);
+  //     throw error;
+  //   }
+  // }
+
   async loadDiagram(id: string): Promise<Model> {
-    console.log(`ServerStorage: Loading diagram ${id} from ${this.baseUrl}/api/diagrams/${id}`);
-    try {
-      const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
-        method: 'GET',
-        headers: { ...authHeaders(),'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(10000) // 10 second timeout
-      });
+    const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
+      headers: {
+        ...authHeaders(),
+        'Content-Type': 'application/json'
+      },
+      signal: AbortSignal.timeout(10000)
+    });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`ServerStorage: Failed to load diagram ${id}: ${response.status} ${errorText}`);
-        throw new Error(`Failed to load diagram: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log(`ServerStorage: Successfully loaded diagram ${id}, items: ${data.items?.length || 0}`);
-      return data;
-    } catch (error) {
-      console.error(`ServerStorage: Error loading diagram ${id}:`, error);
-      throw error;
+    if (!response.ok) {
+      throw new Error(`Load failed: ${response.status}`);
     }
+
+    const data = await response.json();
+
+    // 🔒 VALIDASI KRITIS
+    if (!data || typeof data !== 'object') {
+      throw new Error('Invalid diagram data');
+    }
+
+    if (!data.model) {
+      console.warn('Diagram has no model, injecting empty model');
+      data.model = { nodes: [], edges: [] };
+    }
+
+    // pastikan name ada
+    if (!data.name) {
+      data.name = 'Untitled Diagram';
+    }
+
+    return data;
   }
+
 
   async saveDiagram(id: string, data: Model): Promise<void> {
     console.log(`ServerStorage: Saving diagram ${id}`);

@@ -79,7 +79,18 @@ function EditorPage() {
   ];
 
   const [diagramData, setDiagramData] = useState<DiagramData>(() => {
-    // Initialize with last opened data if available
+    // If using server storage, start with empty data
+    if (storageManager.isServerStorage?.()) {
+      return {
+        title: 'Untitled Diagram',
+        icons: coreIcons,
+        colors: defaultColors,
+        items: [],
+        views: [],
+        fitToScreen: true
+      };
+    }
+
     const lastOpenedData = localStorage.getItem('fossflow-last-opened-data');
     if (lastOpenedData) {
       try {
@@ -99,7 +110,6 @@ function EditorPage() {
       }
     }
 
-    // Default state if no saved data
     return {
       title: 'Untitled Diagram',
       icons: coreIcons,
@@ -571,7 +581,25 @@ function EditorPage() {
 
     // Update diagramData and key together
     // This ensures Isoflow gets the correct data with the new key
-    setDiagramData(mergedData);
+    // setDiagramData(mergedData);
+    setDiagramData({
+      title: 'Loading...',
+      icons: [],
+      colors: defaultColors,
+      items: [],
+      views: [],
+      fitToScreen: true
+    });
+
+    setTimeout(() => {
+      setDiagramName(newDiagram.name);
+      setCurrentDiagram(newDiagram);
+      setCurrentModel(mergedData);
+      setDiagramData(mergedData);
+      setHasUnsavedChanges(false);
+      setFossflowKey(prev => prev + 1);
+    }, 0);
+
     setFossflowKey((prev) => {
       const newKey = prev + 1;
       console.log(`App: Updated fossflowKey from ${prev} to ${newKey}`);
@@ -588,6 +616,7 @@ function EditorPage() {
 
   // Auto-save functionality
   useEffect(() => {
+    if (serverStorageAvailable) return;
     if (isReadOnly) return;
     if (!currentModel || !hasUnsavedChanges || !currentDiagram) return;
 
@@ -610,39 +639,47 @@ function EditorPage() {
         fitToScreen: true
       };
 
-      const updatedDiagram: SavedDiagram = {
-        ...currentDiagram,
-        data: savedData,
-        updatedAt: new Date().toISOString()
-      };
+      // const updatedDiagram: SavedDiagram = {
+      //   ...currentDiagram,
+      //   data: savedData,
+      //   updatedAt: new Date().toISOString()
+      // };
 
-      setDiagrams((prevDiagrams) => {
-        return prevDiagrams.map((d) => {
-          return d.id === currentDiagram.id ? updatedDiagram : d;
-        });
-      });
+      // setDiagrams((prevDiagrams) => {
+      //   return prevDiagrams.map((d) => {
+      //     return d.id === currentDiagram.id ? updatedDiagram : d;
+      //   });
+      // });
 
-      // Update last opened data
-      try {
-        localStorage.setItem(
-          'fossflow-last-opened-data',
-          JSON.stringify(savedData)
-        );
-        setLastAutoSave(new Date());
-        setHasUnsavedChanges(false);
-      } catch (e) {
-        console.error('Auto-save failed:', e);
-        if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-          alert(t('alert.autoSaveFailed'));
-          setShowStorageManager(true);
-        }
-      }
+      // // Update last opened data
+      // try {
+      //   localStorage.setItem(
+      //     'fossflow-last-opened-data',
+      //     JSON.stringify(savedData)
+      //   );
+      //   setLastAutoSave(new Date());
+      //   setHasUnsavedChanges(false);
+      // } catch (e) {
+      //   console.error('Auto-save failed:', e);
+      //   if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      //     alert(t('alert.autoSaveFailed'));
+      //     setShowStorageManager(true);
+      //   }
+      // }
+
+      localStorage.setItem(
+        'fossflow-last-opened-data',
+        JSON.stringify(savedData)
+      );
+
+      setLastAutoSave(new Date());
+      setHasUnsavedChanges(false);
     }, 5000); // Auto-save after 5 seconds of changes
 
     return () => {
       return clearTimeout(autoSaveTimer);
     };
-  }, [currentModel, hasUnsavedChanges, currentDiagram, diagramName]);
+  }, [serverStorageAvailable, currentModel, hasUnsavedChanges, currentDiagram, diagramName]);
 
   // Warn before closing if there are unsaved changes
   useEffect(() => {
@@ -709,7 +746,6 @@ function EditorPage() {
     currentDiagram,
     hasUnsavedChanges
   ]);
-
 
   return (
     <div className="App">

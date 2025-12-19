@@ -5,14 +5,20 @@ interface PersistedDiagramData extends Omit<DiagramData, 'icons'> {
   // We omit icons from persisted data to save space
 }
 
-export const usePersistedDiagram = (icons: any[]) => {
+export const usePersistedDiagram = (
+  icons: any[],
+  enabled: boolean = true
+) => {
   // Helper to add icons back to diagram data
   const addIconsToDiagram = useCallback((data: PersistedDiagramData): DiagramData => {
+    if (!enabled) {
+      return data as DiagramData;
+    }
     return {
       ...data,
       icons: icons
     };
-  }, [icons]);
+  }, [icons, enabled]);
 
   // Helper to remove icons before persisting
   const removeIconsFromDiagram = useCallback((data: DiagramData): PersistedDiagramData => {
@@ -22,6 +28,7 @@ export const usePersistedDiagram = (icons: any[]) => {
 
   // Safe localStorage operations
   const safeSetItem = useCallback((key: string, value: string) => {
+    if (!enabled) return false;
     try {
       localStorage.setItem(key, value);
       return true;
@@ -46,16 +53,17 @@ export const usePersistedDiagram = (icons: any[]) => {
       }
       return false;
     }
-  }, []);
+  }, [enabled]);
 
   const safeGetItem = useCallback((key: string): string | null => {
+    if (!enabled) return null;
     try {
       return localStorage.getItem(key);
     } catch (e) {
       console.error(`Failed to read from localStorage (${key}):`, e);
       return null;
     }
-  }, []);
+  }, [enabled]);
 
   return {
     addIconsToDiagram,
