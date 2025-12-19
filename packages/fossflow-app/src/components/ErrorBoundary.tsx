@@ -21,7 +21,7 @@ export default function ErrorBoundaryFallbackUI({
     };
 
     const githubUrl = new URL(
-      'https://github.com/primaaji23/ArcaSkema/issues/new'
+      'https://github.com/primaaji23/SynCan/issues/new'
     );
     githubUrl.searchParams.set('title', `Error: ${error.message}`);
     githubUrl.searchParams.set(
@@ -84,7 +84,7 @@ export default function ErrorBoundaryFallbackUI({
             <li>
               Check if this error has already been reported{' '}
               <a
-                href="https://github.com/primaaji23/ArcaSkema/issues"
+                href="https://github.com/primaaji23/SynCan/issues"
                 target="_"
               >
                 here👀

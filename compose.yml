@@ -25,11 +25,11 @@ services:
       - ENABLE_SERVER_STORAGE=${ENABLE_SERVER_STORAGE:-true}
       - STORAGE_PATH=/data/diagrams
       - ENABLE_GIT_BACKUP=${ENABLE_GIT_BACKUP:-false}
-      - JWT_SECRET= supersecretkey
+      - JWT_SECRET=supersecretkey
       - DB_HOST=host.docker.internal
       - DB_PORT=3306
       - DB_USER=admin
       - DB_PASS=notodewe
-      - DB_NAME=arcaskema_db
+      - DB_NAME=syncan_db
     volumes:
-      - ./diagrams:/data/diagrams
+      - /opt/fossflow/diagrams:/data/diagrams

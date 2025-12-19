@@ -79,8 +79,8 @@ export default function LoginPage() {
         }
 
         .logo {
-          width: 200px;
-          margin-bottom: 20px;
+          width: 300px;
+          margin-bottom: 25px;
         }
 
         .form-group {
@@ -195,7 +195,7 @@ export default function LoginPage() {
       </svg>
 
       <div className="login-card">
-        {/* <img className="logo" src="img/candilite.png" alt="Candi Logo" /> */}
+        { <img className="logo" src={`${process.env.PUBLIC_URL}/SynCan0.png`} alt="Synchronized Candi Network" /> }
 
         <form onSubmit={login}>
           <div className="form-group">

@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/primaaji23/ArcaSkema.git"
+    "url": "https://github.com/primaaji23/SynCan.git"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
