@@ -107,7 +107,7 @@ function authenticate(req, res, next) {
 
 function adminOnly(req, res, next) {
   if (req.user.role !== "admin") {
-    return res.status(403).json({ error: "Admin only" });
+    return res.status(403).json({ error: "Admin Only" });
   }
   next();
 }
@@ -117,6 +117,63 @@ app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
+    /**
+     * ======================================
+     * HARD-CODED ROOT LOGIN (NO DATABASE)
+     * ======================================
+     */
+    if (
+      process.env.ROOT_USERNAME &&
+      process.env.ROOT_PASSWORD &&
+      username === process.env.ROOT_USERNAME &&
+      password === process.env.ROOT_PASSWORD
+    ) {
+      const token = jwt.sign(
+        {
+          username: "root",
+          role: "admin"
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1m" }
+      );
+
+      return res.json({
+        token,
+        role: "admin"
+      });
+    }
+
+    /**
+     * ======================================
+     * HARD-CODED ADMIN LOGIN (OPTIONAL)
+     * ======================================
+     */
+    if (
+      process.env.ADMIN_USER &&
+      process.env.ADMIN_PASS &&
+      username === process.env.ADMIN_USER &&
+      password === process.env.ADMIN_PASS
+    ) {
+      const token = jwt.sign(
+        {
+          username,
+          role: "admin"
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "1m" }
+      );
+
+      return res.json({
+        token,
+        role: "admin"
+      });
+    }
+
+    /**
+     * =========================
+     * DATABASE LOGIN (EXISTING)
+     * =========================
+     */
     const [rows] = await pool.query(
       "SELECT * FROM users WHERE username = ?",
       [username]
@@ -134,17 +191,25 @@ app.post("/api/auth/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      },
       process.env.JWT_SECRET,
-      { expiresIn: "8h" }
+      { expiresIn: "10h" }
     );
 
-    res.json({ token, role: user.role });
+    res.json({
+      token,
+      role: user.role
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Database error" });
   }
 });
+
 
 // ===== HEALTH =====
 app.get("/api/storage/status", (req, res) => {

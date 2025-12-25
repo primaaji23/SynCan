@@ -1,4 +1,5 @@
 import { Model } from 'fossflow/dist/types';
+import { apiFetch } from "../services/api";
 
 export interface DiagramInfo {
   id: string;
@@ -53,7 +54,7 @@ class ServerStorage implements StorageService {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/storage/status`, {
+      const response = await apiFetch(`${this.baseUrl}/api/storage/status`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(5000) // 5 second timeout
@@ -73,7 +74,7 @@ class ServerStorage implements StorageService {
 
   async listDiagrams(): Promise<DiagramInfo[]> {
     console.log(`Fetching diagrams from: ${this.baseUrl}/api/diagrams`);
-    const response = await fetch(`${this.baseUrl}/api/diagrams`, {
+    const response = await apiFetch(`${this.baseUrl}/api/diagrams`, {
       headers: {
         ...authHeaders(),
       },
@@ -120,7 +121,7 @@ class ServerStorage implements StorageService {
   // }
 
   async loadDiagram(id: string): Promise<Model> {
-    const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
+    const response = await apiFetch(`${this.baseUrl}/api/diagrams/${id}`, {
       headers: {
         ...authHeaders(),
         'Content-Type': 'application/json'
@@ -156,7 +157,7 @@ class ServerStorage implements StorageService {
   async saveDiagram(id: string, data: Model): Promise<void> {
     console.log(`ServerStorage: Saving diagram ${id}`);
     try {
-      const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
+      const response = await apiFetch(`${this.baseUrl}/api/diagrams/${id}`, {
         method: 'PUT',
         headers: { ...authHeaders(),'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -177,7 +178,7 @@ class ServerStorage implements StorageService {
   }
 
   async deleteDiagram(id: string): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/api/diagrams/${id}`, {
+    const response = await apiFetch(`${this.baseUrl}/api/diagrams/${id}`, {
       method: 'DELETE',
       headers: {
         ...authHeaders(),
@@ -187,7 +188,7 @@ class ServerStorage implements StorageService {
   }
 
   async createDiagram(data: Model): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/api/diagrams`, {
+    const response = await apiFetch(`${this.baseUrl}/api/diagrams`, {
       method: 'POST',
       headers: { ...authHeaders(),'Content-Type': 'application/json' },
       body: JSON.stringify(data)

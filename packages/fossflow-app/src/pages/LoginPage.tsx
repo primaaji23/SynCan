@@ -7,32 +7,48 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   async function login(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
+  e.preventDefault();
+  setIsLoading(true);
 
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ username, password })
+    });
 
-      if (!res.ok) {
-        alert("Login gagal");
-        setIsLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("role", data.role);
-
-      window.location.reload();
-    } catch (error) {
-      alert("Terjadi kesalahan koneksi");
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Login failed:", errText);
+      alert("Login gagal");
       setIsLoading(false);
+      return;
     }
+
+    const data = await res.json();
+
+    if (!data.token || !data.role) {
+      console.error("Invalid login response:", data);
+      alert("Response login tidak valid");
+      setIsLoading(false);
+      return;
+    }
+
+    const expiresAt = Date.now() + 8 * 60 * 60 * 1000; // 8 jam
+
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("role", data.role);
+    localStorage.setItem("expiresAt", expiresAt.toString());
+
+    window.location.href = "/flow";
+  } catch (error) {
+    console.error("Login error:", error);
+    alert("Terjadi kesalahan koneksi");
+    setIsLoading(false);
   }
+}
 
   return (
     <div className="login-container">

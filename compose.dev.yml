@@ -9,5 +9,11 @@ services:
       - ENABLE_SERVER_STORAGE=true
       - STORAGE_PATH=/data/diagrams
       - ENABLE_GIT_BACKUP=false
+      - JWT_SECRET=supersecretkey
+      - REFRESH_SECRET=superrefreshsecret
+      - ROOT_USERNAME=root
+      - ROOT_PASSWORD=Password1236
+      - ADMIN_USER=root
+      - ADMIN_PASS=Password1236
     volumes:
       - ./diagrams:/data/diagrams

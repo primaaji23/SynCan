@@ -32,5 +32,13 @@ export default defineConfig({
                 to: 'i18n/app',
             },
         ]
-    }
+    },
+    server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
 });

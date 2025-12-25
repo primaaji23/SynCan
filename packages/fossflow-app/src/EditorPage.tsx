@@ -12,7 +12,7 @@ import ChangeLanguage from './components/ChangeLanguage';
 import { allLocales } from 'fossflow';
 import { useIconPackManager, IconPackName } from './services/iconPackManager';
 import './App.css';
-import { isAdmin, logout } from "./auth/auth";
+import { getToken, isAdmin, logout, isExpired} from "./auth/auth";
 
 
 // Load core isoflow icons (always loaded)
@@ -29,6 +29,28 @@ interface SavedDiagram {
 
 function EditorPage() {
   const roleReadOnly = !isAdmin();
+
+  // Check token expiry periodically
+  const navigate = useNavigate();
+
+    useEffect(() => {
+    // Check immediately on mount
+    if (isExpired()) {
+      logout();
+      navigate("/login", { state:{ sessionExpired:true }, replace:true });
+      return;
+    }
+
+    // Check every 30 seconds
+    const timer = setInterval(() => {
+      if (isExpired()) {
+        logout();
+        navigate("/login", { state:{ sessionExpired:true }, replace:true });
+      }
+    }, 30000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   // Initialize icon pack manager with core icons
   const iconPackManager = useIconPackManager(coreIcons);
@@ -52,7 +74,7 @@ function EditorPage() {
   const isReadonlyUrl =
     window.location.pathname.startsWith('/display/') && readonlyDiagramId;
   const isReadOnly = isReadonlyUrl || roleReadOnly;
-
+  const autoOpenedRef = useRef(false);
 
   // Initialize with empty diagram data
   // Create default colors for connectors
@@ -117,6 +139,18 @@ function EditorPage() {
       })
       .catch(console.error);
   }, []);
+
+  // Auto-show diagram manager for read-only users when server storage is available
+  useEffect(() => {
+    if (
+      roleReadOnly &&
+      serverStorageAvailable &&
+      !autoOpenedRef.current
+    ) {
+      setShowDiagramManager(true);
+      autoOpenedRef.current = true;
+    }
+  }, [roleReadOnly, serverStorageAvailable]);
 
   // Check if readonlyDiagramId exists - if exists, load diagram in view-only mode
   useEffect(() => {
@@ -864,7 +898,10 @@ function EditorPage() {
           )}
         </span>
         <button
-          onClick={logout}
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
           style={{
             backgroundColor: "#dc3545",
             color: "white",
@@ -875,7 +912,15 @@ function EditorPage() {
         </button>
       </div>
 
-      <div className="fossflow-container">
+      <div className="fossflow-container"
+        onContextMenu={
+          isReadOnly
+            ? (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            : undefined
+        }>
         <Isoflow
           key={fossflowKey}
           initialData={diagramData}
