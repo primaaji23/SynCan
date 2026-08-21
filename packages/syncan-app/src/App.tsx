@@ -12,7 +12,7 @@ import { ToastProvider } from './components/ToastProvider';
 import TonerPage from "./pages/TonerPage";
 import ProfilePage from './pages/ProfilePage';
 import ReportPage from './pages/ReportPage';
-import TrashPage from './pages/UnderConstruction';
+import TrashPage from './pages/TrashPage';
 import UnderConstruction from './pages/UnderConstruction';
 
 // Load core isoflow icons (always loaded)

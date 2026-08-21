@@ -123,6 +123,38 @@ async function initDB() {
   `);
 
   // =========================
+  // ASSET RETIREMENTS (Trash)
+  // =========================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS asset_retirements (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      asset_id BIGINT UNSIGNED NOT NULL,
+
+      reason TEXT NULL,
+      physical_condition VARCHAR(255) NULL,
+
+      disposal_status ENUM('IN_STORAGE','DISPOSED','SOLD','DONATED') NOT NULL DEFAULT 'IN_STORAGE',
+      disposal_date DATE NULL,
+      disposal_notes TEXT NULL,
+
+      retired_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      retired_by VARCHAR(128) NULL,
+
+      restored_at TIMESTAMP NULL,
+      restored_by VARCHAR(128) NULL,
+      restored_to_status ENUM('IN_USE','IN_STOCK','REPAIR') NULL,
+
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+      PRIMARY KEY (id),
+      KEY idx_retirements_asset (asset_id),
+      KEY idx_retirements_disposal_status (disposal_status),
+      KEY idx_retirements_active (asset_id, restored_at),
+      CONSTRAINT fk_retirements_asset FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // =========================
   // INVENTORY ITEMS
   // =========================
   await pool.query(`
@@ -372,12 +404,13 @@ await safeAlter(
 
       action ENUM(
         'ASSET_CREATE','ASSET_UPDATE','ASSET_DELETE',
+        'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH',
         'INV_CREATE','INV_UPDATE','INV_DELETE','INV_MOVE',
         'USER_CREATE','USER_UPDATE','USER_DELETE',
         'TONER_CREATE','TONER_UPDATE','TONER_DELETE','TONER_MOVE'
       ) NOT NULL,
 
-      entity_type ENUM('ASSET','INVENTORY','USER','TONER') NOT NULL,
+      entity_type ENUM('ASSET','ASSET_RETIREMENT','INVENTORY','USER','TONER') NOT NULL,
       entity_id BIGINT UNSIGNED NULL,
 
       meta JSON NULL,
@@ -389,6 +422,22 @@ await safeAlter(
       KEY idx_activity_actor (actor_username),
       KEY idx_activity_entity (entity_type, entity_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // Idempotent upgrade: tambah value ENUM baru untuk fitur Trash
+  // (aman dijalankan berulang - cuma re-set daftar ENUM yang sama)
+  await safeAlter(`
+    ALTER TABLE activity_logs MODIFY COLUMN action ENUM(
+      'ASSET_CREATE','ASSET_UPDATE','ASSET_DELETE',
+      'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH',
+      'INV_CREATE','INV_UPDATE','INV_DELETE','INV_MOVE',
+      'USER_CREATE','USER_UPDATE','USER_DELETE',
+      'TONER_CREATE','TONER_UPDATE','TONER_DELETE','TONER_MOVE'
+    ) NOT NULL
+  `);
+  await safeAlter(`
+    ALTER TABLE activity_logs MODIFY COLUMN entity_type
+      ENUM('ASSET','ASSET_RETIREMENT','INVENTORY','USER','TONER') NOT NULL
   `);
 }
 
@@ -1213,6 +1262,23 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
 
     const payload = req.body || {};
 
+    // --- cegah ubah status RETIRED lewat endpoint generik ini ---
+    // (harus lewat /retire dan /trash/:id/restore supaya data asset_retirements konsisten)
+    if (payload.status !== undefined) {
+      const [curRows] = await pool.query(`SELECT status FROM assets WHERE id = ?`, [id]);
+      const curStatus = curRows?.[0]?.status;
+      if (payload.status === "RETIRED" && curStatus !== "RETIRED") {
+        return res.status(400).json({
+          error: "Gunakan endpoint retire untuk memindahkan asset ke Trash",
+        });
+      }
+      if (curStatus === "RETIRED" && payload.status !== "RETIRED") {
+        return res.status(400).json({
+          error: "Asset sedang di Trash, gunakan restore dari halaman Trash",
+        });
+      }
+    }
+
     // --- ambil data sebelum update (untuk history diff) ---
     const [rows] = await pool.query(
       `SELECT
@@ -1531,6 +1597,226 @@ app.post("/api/assets/:id/restore", authenticate, adminOnly, async (req, res) =>
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: "failed to restore" });
+  }
+});
+
+// =========================
+// TRASH (Retired Assets)
+// =========================
+
+// Pindahkan asset ke Trash (set status RETIRED + catat kondisi fisik)
+app.post("/api/assets/:id/retire", authenticate, adminOnly, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const id = Number(req.params.id);
+    const reason = (req.body?.reason || "").trim();
+    const physicalCondition = (req.body?.physicalCondition || "").trim();
+    if (!Number.isFinite(id)) return res.status(400).json({ error: "invalid id" });
+
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query(`SELECT status FROM assets WHERE id = ? FOR UPDATE`, [id]);
+    const asset = rows?.[0];
+    if (!asset) {
+      await conn.rollback();
+      return res.status(404).json({ error: "not found" });
+    }
+    if (asset.status === "RETIRED") {
+      await conn.rollback();
+      return res.status(400).json({ error: "Asset sudah berada di Trash" });
+    }
+
+    await conn.query(
+      `UPDATE assets SET status = 'RETIRED', updated_by = ? WHERE id = ?`,
+      [req.user?.username || null, id]
+    );
+
+    const [ins] = await conn.query(
+      `INSERT INTO asset_retirements
+         (asset_id, reason, physical_condition, retired_by)
+       VALUES (?, ?, ?, ?)`,
+      [id, reason || null, physicalCondition || null, req.user?.username || null]
+    );
+
+    await conn.commit();
+
+    await logActivity({
+      req,
+      action: "ASSET_RETIRE",
+      entityType: "ASSET",
+      entityId: id,
+      meta: { reason, physicalCondition },
+    });
+
+    sseBroadcast("assets_changed", { action: "retire", entityId: String(id), by: req.user?.username || null, ts: Date.now() });
+    sseBroadcast("dashboard_changed", { ts: Date.now() });
+
+    res.json({ ok: true, retirementId: String(ins.insertId) });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: "Failed to retire asset" });
+  } finally {
+    conn.release();
+  }
+});
+
+// List isi Trash (retirement aktif, belum di-restore)
+app.get("/api/trash", authenticate, async (req, res) => {
+  try {
+    const { search = "", disposalStatus = "" } = req.query;
+    const q = `%${String(search)}%`;
+
+    const where = [`ar.restored_at IS NULL`];
+    const params = [];
+
+    if (search) {
+      where.push(`(a.asset_tag LIKE ? OR a.name LIKE ? OR a.model LIKE ?)`);
+      params.push(q, q, q);
+    }
+    if (disposalStatus) {
+      where.push(`ar.disposal_status = ?`);
+      params.push(String(disposalStatus));
+    }
+
+    const whereSql = `WHERE ${where.join(" AND ")}`;
+
+    const [rows] = await pool.query(
+      `SELECT
+         ar.id AS retirementId,
+         a.id AS assetId,
+         a.asset_tag AS assetTag,
+         a.name,
+         a.type,
+         a.brand,
+         a.model,
+         a.location,
+         ar.reason,
+         ar.physical_condition AS physicalCondition,
+         ar.disposal_status AS disposalStatus,
+         ar.disposal_date AS disposalDate,
+         ar.disposal_notes AS disposalNotes,
+         ar.retired_at AS retiredAt,
+         ar.retired_by AS retiredBy
+       FROM asset_retirements ar
+       JOIN assets a ON a.id = ar.asset_id
+       ${whereSql}
+       ORDER BY ar.retired_at DESC, ar.id DESC`,
+      params
+    );
+
+    res.json(rows.map((r) => ({ ...r, retirementId: String(r.retirementId), assetId: String(r.assetId) })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load trash" });
+  }
+});
+
+// Update info di Trash (kondisi fisik / finalize disposal)
+app.put("/api/trash/:retirementId", authenticate, adminOnly, async (req, res) => {
+  try {
+    const retirementId = Number(req.params.retirementId);
+    if (!Number.isFinite(retirementId)) return res.status(400).json({ error: "invalid id" });
+
+    const payload = req.body || {};
+    const validDisposalStatuses = ["IN_STORAGE", "DISPOSED", "SOLD", "DONATED"];
+    if (payload.disposalStatus !== undefined && !validDisposalStatuses.includes(payload.disposalStatus)) {
+      return res.status(400).json({ error: "invalid disposalStatus" });
+    }
+
+    const [r] = await pool.query(
+      `UPDATE asset_retirements SET
+         physical_condition = COALESCE(?, physical_condition),
+         disposal_status     = COALESCE(?, disposal_status),
+         disposal_date       = COALESCE(?, disposal_date),
+         disposal_notes      = COALESCE(?, disposal_notes)
+       WHERE id = ? AND restored_at IS NULL`,
+      [
+        payload.physicalCondition ?? null,
+        payload.disposalStatus ?? null,
+        payload.disposalDate ? String(payload.disposalDate) : null,
+        payload.disposalNotes ?? null,
+        retirementId,
+      ]
+    );
+
+    if (r?.affectedRows === 0) return res.status(404).json({ error: "not found" });
+
+    await logActivity({
+      req,
+      action: "ASSET_TRASH_UPDATE",
+      entityType: "ASSET_RETIREMENT",
+      entityId: retirementId,
+      meta: payload,
+    });
+
+    sseBroadcast("assets_changed", { action: "trash_update", entityId: String(retirementId), by: req.user?.username || null, ts: Date.now() });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to update trash entry" });
+  }
+});
+
+// Restore asset dari Trash -> kembalikan ke status operasional
+app.post("/api/trash/:retirementId/restore", authenticate, adminOnly, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const retirementId = Number(req.params.retirementId);
+    const toStatus = String(req.body?.status || "");
+    const validStatuses = ["IN_USE", "IN_STOCK", "REPAIR"];
+    if (!Number.isFinite(retirementId)) return res.status(400).json({ error: "invalid id" });
+    if (!validStatuses.includes(toStatus)) {
+      return res.status(400).json({ error: "status harus salah satu dari IN_USE, IN_STOCK, REPAIR" });
+    }
+
+    await conn.beginTransaction();
+
+    const [rows] = await conn.query(
+      `SELECT asset_id FROM asset_retirements WHERE id = ? AND restored_at IS NULL FOR UPDATE`,
+      [retirementId]
+    );
+    const retirement = rows?.[0];
+    if (!retirement) {
+      await conn.rollback();
+      return res.status(404).json({ error: "not found" });
+    }
+
+    await conn.query(
+      `UPDATE asset_retirements SET
+         restored_at = NOW(),
+         restored_by = ?,
+         restored_to_status = ?
+       WHERE id = ?`,
+      [req.user?.username || null, toStatus, retirementId]
+    );
+
+    await conn.query(
+      `UPDATE assets SET status = ?, updated_by = ? WHERE id = ?`,
+      [toStatus, req.user?.username || null, retirement.asset_id]
+    );
+
+    await conn.commit();
+
+    await logActivity({
+      req,
+      action: "ASSET_RESTORE_FROM_TRASH",
+      entityType: "ASSET",
+      entityId: retirement.asset_id,
+      meta: { toStatus },
+    });
+
+    sseBroadcast("assets_changed", { action: "restore_from_trash", entityId: String(retirement.asset_id), by: req.user?.username || null, ts: Date.now() });
+    sseBroadcast("dashboard_changed", { ts: Date.now() });
+
+    res.json({ ok: true });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: "Failed to restore asset" });
+  } finally {
+    conn.release();
   }
 });
 

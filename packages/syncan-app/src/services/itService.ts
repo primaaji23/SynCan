@@ -313,6 +313,81 @@ export async function generateAssetTag(location: string): Promise<{ assetTag: st
   return json<{ assetTag: string }>(res);
 }
 
+// Pindahkan asset ke Trash (status -> RETIRED)
+export async function retireAsset(
+  id: string,
+  body: { reason: string; physicalCondition: string }
+): Promise<{ ok: boolean; retirementId: string }> {
+  const res = await apiFetch(`/api/assets/${id}/retire`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return json(res);
+}
+
+// =====================
+// Trash
+// =====================
+export type DisposalStatus = "IN_STORAGE" | "DISPOSED" | "SOLD" | "DONATED";
+
+export type TrashEntry = {
+  retirementId: string;
+  assetId: string;
+  assetTag: string;
+  name: string;
+  type: AssetType;
+  brand?: string;
+  model?: string;
+  location?: string;
+  reason?: string;
+  physicalCondition?: string;
+  disposalStatus: DisposalStatus;
+  disposalDate?: string | null;
+  disposalNotes?: string | null;
+  retiredAt: string;
+  retiredBy?: string | null;
+};
+
+export async function listTrash(params?: {
+  search?: string;
+  disposalStatus?: DisposalStatus | "";
+}): Promise<TrashEntry[]> {
+  const res = await apiFetch(
+    `/api/trash${qs({
+      search: params?.search,
+      disposalStatus: params?.disposalStatus as string,
+    })}`
+  );
+  return json<TrashEntry[]>(res);
+}
+
+export async function updateTrashEntry(
+  retirementId: string,
+  payload: Partial<{
+    physicalCondition: string;
+    disposalStatus: DisposalStatus;
+    disposalDate: string;
+    disposalNotes: string;
+  }>
+): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/trash/${retirementId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+  return json(res);
+}
+
+export async function restoreFromTrash(
+  retirementId: string,
+  body: { status: "IN_USE" | "IN_STOCK" | "REPAIR" }
+): Promise<{ ok: boolean }> {
+  const res = await apiFetch(`/api/trash/${retirementId}/restore`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return json(res);
+}
+
 export async function generateSKU(name: string, category?: string): Promise<{ sku: string }> {
   const params = new URLSearchParams({
     name: encodeURIComponent(name)

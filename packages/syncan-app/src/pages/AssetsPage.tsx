@@ -7,6 +7,7 @@ import {
   updateAsset,
   disableAsset,
   restoreAsset,
+  retireAsset,
   type Asset,
   type AssetStatus,
   type AssetType,
@@ -1083,6 +1084,38 @@ export default function AssetsPage() {
     }
   }
 
+  async function onRetire(a: Asset) {
+    if (!canWrite) return;
+
+    const reason = window.prompt(
+      `Alasan retire asset ${a.assetTag} - ${a.name}? (misal: rusak, usang, upgrade)`
+    );
+    if (reason === null) return; // batal
+    if (!reason.trim()) {
+      toast.error("Alasan wajib diisi");
+      return;
+    }
+
+    const physicalCondition = window.prompt(
+      `Kondisi fisik sekarang? (misal: "Kardus gudang B", "Almari IT lt.2", "Sudah dibuang")`
+    );
+    if (physicalCondition === null) return; // batal
+    if (!physicalCondition.trim()) {
+      toast.error("Kondisi fisik wajib diisi");
+      return;
+    }
+
+    if (!window.confirm(`Pindahkan ${a.assetTag} - ${a.name} ke Trash?`)) return;
+
+    try {
+      await retireAsset(a.id, { reason: reason.trim(), physicalCondition: physicalCondition.trim() });
+      toast.success("Asset dipindahkan ke Trash");
+      await reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal memindahkan asset ke Trash");
+    }
+  }
+
   return (
     <AppLayout>
       <div style={useThemeVars(theme)}>
@@ -1334,6 +1367,10 @@ export default function AssetsPage() {
                               <button style={buttonStyle("danger")} onClick={() => onDisable(a)}>DISABLE</button>
                             )
                           ) : null}
+
+                          {canWrite && a.status !== "RETIRED" ? (
+                            <button style={buttonStyle("danger")} onClick={() => onRetire(a)}>TRASH</button>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -1511,16 +1548,30 @@ export default function AssetsPage() {
 
                 <div style={{ gridColumn: "span 4" }}>
                   <Field label="Status">
-                    <DropdownSelect
-                      value={form.status as any}
-                      onChange={(v) => setForm((p) => ({ ...p, status: v as any }))}
-                      options={[
-                        { value: "IN_USE" as any, label: "IN_USE" },
-                        { value: "IN_STOCK" as any, label: "IN_STOCK" },
-                        { value: "REPAIR" as any, label: "REPAIR" },
-                        { value: "RETIRED" as any, label: "RETIRED" },
-                      ]}
-                    />
+                    {form.status === "RETIRED" ? (
+                      <div
+                        style={{
+                          padding: "10px 12px",
+                          borderRadius: 8,
+                          border: "1px solid var(--app-border, #e2e8f0)",
+                          color: "#94A3B8",
+                          fontSize: 13,
+                          fontWeight: 700,
+                        }}
+                      >
+                        RETIRED — kelola di halaman Trash
+                      </div>
+                    ) : (
+                      <DropdownSelect
+                        value={form.status as any}
+                        onChange={(v) => setForm((p) => ({ ...p, status: v as any }))}
+                        options={[
+                          { value: "IN_USE" as any, label: "IN_USE" },
+                          { value: "IN_STOCK" as any, label: "IN_STOCK" },
+                          { value: "REPAIR" as any, label: "REPAIR" },
+                        ]}
+                      />
+                    )}
                   </Field>
                 </div>
 
