@@ -154,6 +154,28 @@ async function initDB() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  // Backfill: asset yang statusnya sudah RETIRED dari SEBELUM fitur Trash
+  // dibuat belum punya baris di asset_retirements. Idempotent — hanya
+  // insert kalau belum ada retirement record aktif untuk asset itu.
+  try {
+    await pool.query(`
+      INSERT INTO asset_retirements (asset_id, reason, physical_condition, retired_by, retired_at)
+      SELECT a.id,
+             'Data lama (retired sebelum fitur Trash dibuat)',
+             'Belum diketahui — mohon update kondisi fisiknya',
+             a.updated_by,
+             a.updated_at
+      FROM assets a
+      WHERE a.status = 'RETIRED'
+        AND NOT EXISTS (
+          SELECT 1 FROM asset_retirements ar
+          WHERE ar.asset_id = a.id AND ar.restored_at IS NULL
+        )
+    `);
+  } catch (err) {
+    console.error("backfill asset_retirements error:", err);
+  }
+
   // =========================
   // INVENTORY ITEMS
   // =========================

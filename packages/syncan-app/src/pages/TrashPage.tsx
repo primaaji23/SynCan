@@ -55,6 +55,7 @@ function useThemeVars(theme: ThemeName): React.CSSProperties {
     ["--text-1" as any]: dark ? "rgba(255,255,255,0.95)" : "#0F172A",
     ["--text-2" as any]: dark ? "rgba(255,255,255,0.78)" : "#475569",
     ["--muted" as any]: dark ? "rgba(255,255,255,0.62)" : "#64748B",
+    ["--text-3" as any]: dark ? "rgba(255,255,255,0.45)" : "#94A3B8",
 
     ["--card-bg" as any]: dark ? "#2B313D" : "#FFFFFF",
     ["--card-border" as any]: dark ? "rgba(255,255,255,0.10)" : "#E2E8F0",
@@ -424,12 +425,45 @@ export default function TrashPage() {
   return (
     <AppLayout>
       <div style={useThemeVars(theme)}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 16,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
-            <div style={{ fontWeight: 900, fontSize: 22, color: "var(--text-1)" }}>Trash</div>
-            <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 13 }}>
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--text-3)",
+                fontWeight: 500,
+                marginBottom: 8,
+              }}
+            >
+              <a
+                href="/dashboard"
+                style={{ color: "var(--text-3)", textDecoration: "none", transition: "color 150ms ease" }}
+              >
+                Home
+              </a>
+              {" > Trash"}
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text-1)", letterSpacing: "-0.02em" }}>
+              Trash
+            </div>
+            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: 13, marginTop: 4 }}>
               Asset yang sudah di-retire dari Assets — pantau kondisi fisik &amp; status pembuangannya di sini.
             </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button style={buttonStyle()} onClick={reload}>
+              ↻ Refresh
+            </button>
           </div>
         </div>
 
