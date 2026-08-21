@@ -1,0 +1,41 @@
+{
+  "name": "syncan-monorepo",
+  "version": "1.7.0",
+  "private": true,
+  "description": "SynCan - internal inventory, asset & toner management app with an embedded FossFlow-based diagram editor",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development npm run start --workspace=packages/syncan-app",
+    "dev:win": "cross-env NODE_ENV=development npm run start --workspace=packages/syncan-app",
+    "dev:lib": "npm run dev --workspace=packages/fossflow-lib",
+    "dev:backend": "npm run dev --workspace=packages/syncan-backend",
+    "build": "npm run build:lib && npm run build:app",
+    "build:lib": "npm run build --workspace=packages/fossflow-lib",
+    "build:app": "npm run build --workspace=packages/syncan-app",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present && rm -rf node_modules",
+    "docker:build": "docker build -t syncan:local .",
+    "docker:run": "docker compose -f compose.dev.yml up",
+    "update-version": "node scripts/update-version.js"
+  },
+  "devDependencies": {
+    "@types/node": "^18.19.129",
+    "@types/react": "^18.3.26",
+    "@types/react-dom": "^18.3.7",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "dependencies": {
+    "dom-to-image-more": "^3.7.1",
+    "fossflow": "^1.7.0",
+    "xlsx": "^0.18.5"
+  }
+}

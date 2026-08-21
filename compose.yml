@@ -1,0 +1,43 @@
+# services:
+#   fossflow:
+#     image: stnsmith/fossflow:latest
+#     pull_policy: always
+#     ports:
+#       - 80:80
+#     environment:
+#       - NODE_ENV=production
+#       - ENABLE_SERVER_STORAGE=${ENABLE_SERVER_STORAGE:-true}
+#       - STORAGE_PATH=/data/diagrams
+#       - ENABLE_GIT_BACKUP=${ENABLE_GIT_BACKUP:-false}
+#     volumes:
+#       - ./diagrams:/data/diagrams
+
+services:
+  fossflow:
+    container_name: syncan
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "3001:3001"
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Jakarta
+      - ENABLE_SERVER_STORAGE=${ENABLE_SERVER_STORAGE:-true}
+      - STORAGE_PATH=/data/diagrams
+      - ENABLE_GIT_BACKUP=${ENABLE_GIT_BACKUP:-false}
+      - JWT_SECRET=supersecretkey
+      - REFRESH_SECRET=superrefreshsecret
+      - DB_HOST=host.docker.internal
+      - DB_PORT=3306
+      - DB_USER=admin
+      - DB_PASS=notodewe
+      - DB_NAME=syncan_db
+      # - ROOT_USERNAME=root
+      # - ROOT_PASSWORD=Password1236
+    volumes:
+      - /opt/syncan/diagrams:/data/diagrams
