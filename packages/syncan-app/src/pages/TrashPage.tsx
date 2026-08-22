@@ -72,6 +72,7 @@ function useThemeVars(theme: ThemeName): React.CSSProperties {
     ["--menu-shadow" as any]: dark ? "0 18px 40px rgba(0,0,0,0.55)" : "0 12px 28px rgba(0,0,0,0.12)",
 
     ["--table-border" as any]: dark ? "rgba(255,255,255,0.12)" : "#F1F5F9",
+    ["--row-hover" as any]: dark ? "rgba(255,255,255,0.04)" : "#F8FAFC",
 
     ["--btn-ghost-bg" as any]: dark ? "rgba(255,255,255,0.05)" : "#FFFFFF",
     ["--btn-ghost-border" as any]: dark ? "rgba(255,255,255,0.20)" : "#E2E8F0",
@@ -605,7 +606,12 @@ export default function TrashPage() {
                   const age = daysSince(e.retiredAt);
                   const stale = e.disposalStatus === "IN_STORAGE" && age > 180;
                   return (
-                    <tr key={e.retirementId}>
+                    <tr
+                      key={e.retirementId}
+                      style={{ transition: "background 120ms ease" }}
+                      onMouseEnter={(ev) => (ev.currentTarget.style.background = "var(--row-hover)")}
+                      onMouseLeave={(ev) => (ev.currentTarget.style.background = "transparent")}
+                    >
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-1)" }}>
                         {e.assetTag}
                       </td>
