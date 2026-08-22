@@ -364,6 +364,47 @@ export default function TrashPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, disposalStatus]);
 
+  // Sorting
+  type SortDir = "asc" | "desc";
+  type SortKey = "assetTag" | "name" | "reason" | "physicalCondition" | "retiredAt" | "disposalStatus";
+
+  const [sortKey, setSortKey] = useState<SortKey>("retiredAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function toggleSort(key: SortKey) {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        return prev;
+      }
+      setSortDir("asc");
+      return key;
+    });
+  }
+
+  function sortIcon(key: SortKey) {
+    if (sortKey !== key) return "↕";
+    return sortDir === "asc" ? "↑" : "↓";
+  }
+
+  function cmp(a: any, b: any) {
+    if (a === b) return 0;
+    if (a === undefined || a === null) return -1;
+    if (b === undefined || b === null) return 1;
+    return String(a).localeCompare(String(b), "id", { sensitivity: "base" });
+  }
+
+  const sortedEntries = useMemo(() => {
+    const arr = [...entries];
+    arr.sort((x, y) => {
+      const ax = (x as any)[sortKey] || "";
+      const ay = (y as any)[sortKey] || "";
+      const r = cmp(ax, ay);
+      return sortDir === "asc" ? r : -r;
+    });
+    return arr;
+  }, [entries, sortKey, sortDir]);
+
   function openEdit(entry: TrashEntry) {
     setEditTarget(entry);
     setEditForm({
@@ -513,9 +554,19 @@ export default function TrashPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr>
-                  {["Asset Tag", "Nama", "Alasan", "Kondisi Fisik", "Di-retire", "Status", "Aksi"].map((h) => (
+                  {(
+                    [
+                      { key: "assetTag" as SortKey, label: "Asset Tag" },
+                      { key: "name" as SortKey, label: "Nama" },
+                      { key: "reason" as SortKey, label: "Alasan" },
+                      { key: "physicalCondition" as SortKey, label: "Kondisi Fisik" },
+                      { key: "retiredAt" as SortKey, label: "Di-retire" },
+                      { key: "disposalStatus" as SortKey, label: "Status" },
+                    ]
+                  ).map((h) => (
                     <th
-                      key={h}
+                      key={h.key}
+                      onClick={() => toggleSort(h.key)}
                       style={{
                         textAlign: "left",
                         padding: "10px 8px",
@@ -525,15 +576,32 @@ export default function TrashPage() {
                         fontWeight: 900,
                         textTransform: "uppercase",
                         letterSpacing: "0.04em",
+                        cursor: "pointer",
+                        userSelect: "none",
                       }}
                     >
-                      {h}
+                      {h.label}{" "}
+                      <span style={{ marginLeft: 4, color: "#94A3B8", fontWeight: 900 }}>{sortIcon(h.key)}</span>
                     </th>
                   ))}
+                  <th
+                    style={{
+                      textAlign: "left",
+                      padding: "10px 8px",
+                      borderBottom: "1px solid var(--table-border)",
+                      color: "var(--text-2)",
+                      fontSize: 12,
+                      fontWeight: 900,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    Aksi
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((e) => {
+                {sortedEntries.map((e) => {
                   const age = daysSince(e.retiredAt);
                   const stale = e.disposalStatus === "IN_STORAGE" && age > 180;
                   return (

@@ -650,6 +650,7 @@ export default function Dashboard() {
               totalInventoryQty: 130,
               lowStockItems: 1,
               assetsInRepair: 0,
+              trashCount: 0,
             },
             assetsByStatus: [
               { name: "IN_STOCK", value: 5 },
@@ -869,7 +870,7 @@ export default function Dashboard() {
           />
           <MaterialKpiCard
             title="TRASH"
-            value={fmtInt(0)}
+            value={fmtInt(kpis?.trashCount ?? 0)}
             icon={<TrashIcon />}
             color="ghost"
             subtitle={`Items in trash`}

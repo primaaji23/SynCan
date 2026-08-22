@@ -119,6 +119,7 @@ export type DashboardSummary = {
     totalInventoryQty: number;
     lowStockItems: number;
     assetsInRepair: number;
+    trashCount: number;
   };
   assetsByStatus: { name: string; value: number }[];
   inventoryByLocation: { name: string; value: number }[];

@@ -814,6 +814,9 @@ app.get("/api/dashboard/summary", authenticate, async (req, res) => {
     const [[kpiLow]] = await pool.query(
       `SELECT COUNT(*) AS lowStockItems FROM inventory_items WHERE is_active = 1 AND stock < min_stock`
     );
+    const [[kpiTrash]] = await pool.query(
+      `SELECT COUNT(*) AS trashCount FROM asset_retirements WHERE restored_at IS NULL`
+    );
 
     const [assetsByStatus] = await pool.query(
       `SELECT status AS name, COUNT(*) AS value
@@ -891,6 +894,7 @@ app.get("/api/dashboard/summary", authenticate, async (req, res) => {
         totalInventoryQty: Number(kpiInvQty.totalInventoryQty) || 0,
         lowStockItems: Number(kpiLow.lowStockItems) || 0,
         assetsInRepair: Number(kpiRepair.assetsInRepair) || 0,
+        trashCount: Number(kpiTrash.trashCount) || 0,
       },
       assetsByStatus,
       inventoryByLocation,
