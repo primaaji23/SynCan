@@ -1075,57 +1075,57 @@ export default function InventoryPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ textAlign: "left", color: "var(--muted)", fontSize: 12 }}>
+                <tr>
                   <th
                     onClick={() => toggleSort("sku")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     SKU <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("sku")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("name")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Item <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("name")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("category")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Category <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("category")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("location")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Location <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("location")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("stock")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Stock <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("stock")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("min")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Min <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("min")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("status")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Status <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("status")}</span>
                   </th>
 
-                  <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)" }}>Action</th>
+                  <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em" }}>Action</th>
                 </tr>
               </thead>
               <tbody>

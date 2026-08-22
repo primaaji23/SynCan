@@ -1250,57 +1250,57 @@ export default function AssetsPage() {
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 880 }}>
               <thead>
-                <tr style={{ textAlign: "left", color: "var(--muted)", fontSize: 12 }}>
+                <tr>
                   <th
                     onClick={() => toggleSort("assetTag")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Asset Tag <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("assetTag")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("name")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Name <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("name")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("type")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Type <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("type")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("model")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Model <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("model")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("owner")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Assigned to <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("owner")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("location")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Location <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("location")}</span>
                   </th>
 
                   <th
                     onClick={() => toggleSort("status")}
-                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)", cursor: "pointer", userSelect: "none" }}
+                    style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", cursor: "pointer", userSelect: "none" }}
                   >
                     Status <span style={{ marginLeft: 6, color: "#94A3B8", fontWeight: 900 }}>{sortIcon("status")}</span>
                   </th>
 
-                  <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--card-divider)" }}>Action</th>
+                  <th style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em" }}>Action</th>
                 </tr>
               </thead>
 
