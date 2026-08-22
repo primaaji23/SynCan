@@ -427,10 +427,10 @@ export default function TrashPage() {
 
     try {
       await updateTrashEntry(editTarget.retirementId, {
-        physicalCondition: editForm.physicalCondition.trim(),
+        physicalCondition: editForm.physicalCondition.trim().toUpperCase(),
         disposalStatus: editForm.disposalStatus,
         disposalDate: editForm.disposalStatus === "IN_STORAGE" ? "" : editForm.disposalDate,
-        disposalNotes: editForm.disposalNotes.trim(),
+        disposalNotes: editForm.disposalNotes.trim().toUpperCase(),
       });
       toast.success("Data Trash diperbarui");
       setEditTarget(null);

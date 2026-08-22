@@ -1108,7 +1108,7 @@ export default function AssetsPage() {
     if (!window.confirm(`Pindahkan ${a.assetTag} - ${a.name} ke Trash?`)) return;
 
     try {
-      await retireAsset(a.id, { reason: reason.trim(), physicalCondition: physicalCondition.trim() });
+      await retireAsset(a.id, { reason: reason.trim().toUpperCase(), physicalCondition: physicalCondition.trim().toUpperCase() });
       toast.success("Asset dipindahkan ke Trash");
       await reload();
     } catch (e: any) {

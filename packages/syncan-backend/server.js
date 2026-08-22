@@ -161,8 +161,8 @@ async function initDB() {
     await pool.query(`
       INSERT INTO asset_retirements (asset_id, reason, physical_condition, retired_by, retired_at)
       SELECT a.id,
-             'Data lama (retired sebelum fitur Trash dibuat)',
-             'Belum diketahui — mohon update kondisi fisiknya',
+             'DATA LAMA (RETIRED SEBELUM FITUR TRASH DIBUAT)',
+             'BELUM DIKETAHUI — MOHON UPDATE KONDISI FISIKNYA',
              a.updated_by,
              a.updated_at
       FROM assets a
@@ -175,6 +175,20 @@ async function initDB() {
   } catch (err) {
     console.error("backfill asset_retirements error:", err);
   }
+
+  // Migrasi kecil: perbaiki teks placeholder backfill lama yang masih
+  // mixed-case (dari sebelum data disamakan uppercase). Idempotent -
+  // hanya update baris yang persis cocok dengan teks lama.
+  await safeAlter(`
+    UPDATE asset_retirements
+    SET reason = 'DATA LAMA (RETIRED SEBELUM FITUR TRASH DIBUAT)'
+    WHERE reason = 'Data lama (retired sebelum fitur Trash dibuat)'
+  `);
+  await safeAlter(`
+    UPDATE asset_retirements
+    SET physical_condition = 'BELUM DIKETAHUI — MOHON UPDATE KONDISI FISIKNYA'
+    WHERE physical_condition = 'Belum diketahui — mohon update kondisi fisiknya'
+  `);
 
   // =========================
   // INVENTORY ITEMS
