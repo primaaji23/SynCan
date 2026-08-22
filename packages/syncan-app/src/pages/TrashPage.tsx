@@ -336,6 +336,8 @@ export default function TrashPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [disposalStatus, setDisposalStatus] = useState<DisposalStatus | "">("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [editTarget, setEditTarget] = useState<TrashEntry | null>(null);
   const [editForm, setEditForm] = useState({
@@ -362,8 +364,13 @@ export default function TrashPage() {
 
   useEffect(() => {
     reload();
+    setPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, disposalStatus]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   // Sorting
   type SortDir = "asc" | "desc";
@@ -406,7 +413,17 @@ export default function TrashPage() {
     return arr;
   }, [entries, sortKey, sortDir]);
 
+  const total = sortedEntries.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [page, totalPages]);
+
+  const pagedEntries = sortedEntries.slice((page - 1) * pageSize, page * pageSize);
+
   function openEdit(entry: TrashEntry) {
+    setEditTarget(entry);
     setEditTarget(entry);
     setEditForm({
       physicalCondition: entry.physicalCondition || "",
@@ -497,9 +514,9 @@ export default function TrashPage() {
             <div style={{ fontSize: 26, fontWeight: 700, color: "var(--text-1)", letterSpacing: "-0.02em" }}>
               Trash
             </div>
-            <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: 13, marginTop: 4 }}>
+            {/* <div style={{ color: "var(--muted)", fontWeight: 500, fontSize: 13, marginTop: 4 }}>
               Asset yang sudah di-retire dari Assets — pantau kondisi fisik &amp; status pembuangannya di sini.
-            </div>
+            </div> */}
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -522,7 +539,7 @@ export default function TrashPage() {
               fontSize: 13,
             }}
           >
-            ⚠ {staleCount} asset sudah &gt;6 bulan di Trash dan masih berstatus "Masih Disimpan" — pertimbangkan untuk difinalisasi (dibuang/dijual/donasi).
+            {staleCount} asset sudah &gt;6 bulan di Trash dan masih berstatus "Masih Disimpan" — pertimbangkan untuk difinalisasi (dibuang/dijual/donasi).
           </div>
         ) : null}
 
@@ -602,7 +619,7 @@ export default function TrashPage() {
                 </tr>
               </thead>
               <tbody>
-                {sortedEntries.map((e) => {
+                {pagedEntries.map((e) => {
                   const age = daysSince(e.retiredAt);
                   const stale = e.disposalStatus === "IN_STORAGE" && age > 180;
                   return (
@@ -650,6 +667,64 @@ export default function TrashPage() {
                 })}
               </tbody>
             </table>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginTop: 12,
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 800, color: "var(--text-2)" }}>
+                {total === 0 ? 0 : (page - 1) * pageSize + 1}–
+                {Math.min(page * pageSize, total)} of {total}
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  style={{
+                    height: 36,
+                    padding: "6px 10px",
+                    borderRadius: 10,
+                    border: "1px solid var(--input-border)",
+                    fontWeight: 900,
+                    background: "var(--card-bg)",
+                    cursor: "pointer",
+                    color: "var(--text-2)",
+                  }}
+                >
+                  {[10, 20, 30, 40, 50].map((n) => (
+                    <option key={n} value={n}>
+                      {n} / page
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  style={{ ...buttonStyle("ghost"), opacity: page <= 1 ? 0.5 : 1 }}
+                >
+                  Prev
+                </button>
+
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  style={{ ...buttonStyle("ghost"), opacity: page >= totalPages ? 0.5 : 1 }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
 
             {!loading && entries.length === 0 ? (
               <div style={{ marginTop: 10, color: "var(--muted)", fontWeight: 800 }}>Trash kosong.</div>
