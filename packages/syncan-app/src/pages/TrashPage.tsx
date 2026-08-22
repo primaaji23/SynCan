@@ -613,16 +613,16 @@ export default function TrashPage() {
                       onMouseLeave={(ev) => (ev.currentTarget.style.background = "transparent")}
                     >
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-1)" }}>
-                        {e.assetTag}
+                        {(e.assetTag || "").toUpperCase()}
                       </td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-1)" }}>
-                        {e.name}
+                        {(e.name || "").toUpperCase()}
                       </td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
-                        {e.reason || "-"}
+                        {(e.reason || "-").toUpperCase()}
                       </td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
-                        {e.physicalCondition || "-"}
+                        {(e.physicalCondition || "-").toUpperCase()}
                       </td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
                         {formatAge(age)} lalu
