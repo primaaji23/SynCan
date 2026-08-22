@@ -10,7 +10,8 @@ SynCan is an internal web app for managing inventory, IT assets, and toner/refil
 - **Toner** - toner/refill tracking and status
 - **Reports** - generate reports
 - **Diagram Editor** (`/flow`) - draw isometric network/infrastructure diagrams, powered by the embedded `fossflow-lib` package
-- **Auth** - JWT-based login, session handling
+- **Trash** - retired assets tracking: physical condition, disposal status, and restore
+- **Auth** - login, session handling
 
 ## Monorepo Structure
 
@@ -32,7 +33,7 @@ This builds the image locally from the `Dockerfile` and starts:
 - the frontend + nginx on port `80`
 - the backend API on port `3001`
 
-Server storage is enabled by default. Diagrams are saved to the volume mounted in `compose.yml` (`/opt/syncan/diagrams` by default). Configure DB connection, JWT secrets, etc. via the environment variables in `compose.yml`.
+Server storage is enabled by default. Diagrams are saved to the volume mounted in `compose.yml` (`/opt/syncan/diagrams` by default). Configure DB connection and other secrets via the environment variables in `compose.yml`.
 
 To disable diagram server storage, set `ENABLE_SERVER_STORAGE=false`.
 
