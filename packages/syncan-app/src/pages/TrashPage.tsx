@@ -646,19 +646,19 @@ export default function TrashPage() {
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-1)" }}>
                         {(e.assetTag || "").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-1)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
                         {(e.name || "").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {(e.reason || "-").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {(e.physicalCondition || "-").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {(e.physicalLocation || "-").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {formatAge(age)} lalu
                         {stale ? (
                           <span style={{ marginLeft: 6 }}>
@@ -748,7 +748,7 @@ export default function TrashPage() {
               <div style={{ marginTop: 10, color: "var(--muted)", fontWeight: 800 }}>Trash kosong.</div>
             ) : null}
             {loading ? (
-              <div style={{ marginTop: 10, color: "var(--muted)", fontWeight: 800 }}>Memuat...</div>
+              <div style={{ marginTop: 10, color: "var(--muted)", fontWeight: 800 }}>Loading...</div>
             ) : null}
           </div>
         </Card>

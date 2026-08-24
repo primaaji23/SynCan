@@ -1204,22 +1204,22 @@ export default function TonerPage() {
                                             <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-1)" }}>
                                                 {t.tonerSerial}
                                             </td>
-                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-1)" }}>
+                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
                                                 {(t.name || "").toUpperCase()}
                                             </td>
-                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                                                 {(t.model || "-").toUpperCase()}
                                             </td>
-                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                                                 {(t.vendor || "-").toUpperCase()}
                                             </td>
-                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                                                 {t.origin || "-"}
                                             </td>
-                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                                                 {t.createdAt || "-"}
                                             </td>
-                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                                            <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                                                 {(t.location || "-").toUpperCase()}
                                             </td>
                                             <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>

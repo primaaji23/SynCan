@@ -1340,19 +1340,19 @@ export default function AssetsPage() {
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-1)" }}>
                         {(a.assetTag || "").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-1)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
                         {(a.name || "").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {a.type}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {(a.model || "").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {(a.assignedTo || "-").toUpperCase()}
                       </td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {(a.location || "-").toUpperCase()}
                       </td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>

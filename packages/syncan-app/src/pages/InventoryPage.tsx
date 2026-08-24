@@ -1138,11 +1138,11 @@ export default function InventoryPage() {
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                       key={i.id}>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-1)" }}>{i.sku}</td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-1)" }}>{i.name}</td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>{i.category}</td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>{i.location || "-"}</td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-1)" }}>{fmtInt(i.stock ?? 0)}</td>
-                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 900, color: "var(--text-2)" }}>{fmtInt(i.minStock ?? 0)}</td>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", fontWeight: 800, color: "var(--text-2)" }}>{i.name}</td>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>{i.category}</td>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>{i.location || "-"}</td>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>{fmtInt(i.stock ?? 0)}</td>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>{fmtInt(i.minStock ?? 0)}</td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
                         {isDisabled ? (
                           <Pill label="DISABLED" tone="gray" />
