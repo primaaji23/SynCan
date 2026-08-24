@@ -132,6 +132,7 @@ async function initDB() {
 
       reason TEXT NULL,
       physical_condition VARCHAR(255) NULL,
+      physical_location VARCHAR(255) NULL,
 
       disposal_status ENUM('IN_STORAGE','DISPOSED','SOLD','DONATED') NOT NULL DEFAULT 'IN_STORAGE',
       disposal_date DATE NULL,
@@ -154,15 +155,21 @@ async function initDB() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 
+  // Tabel asset_retirements sudah ada dari sebelum kolom physical_location
+  // ditambahkan - kolom ini menyimpan lokasi fisik barang (almari/kardus/
+  // dsb), terpisah dari physical_condition (kondisi barang: baik/rusak/dsb)
+  await safeAlter(`ALTER TABLE asset_retirements ADD COLUMN physical_location VARCHAR(255) NULL AFTER physical_condition`);
+
   // Backfill: asset yang statusnya sudah RETIRED dari SEBELUM fitur Trash
   // dibuat belum punya baris di asset_retirements. Idempotent — hanya
   // insert kalau belum ada retirement record aktif untuk asset itu.
   try {
     await pool.query(`
-      INSERT INTO asset_retirements (asset_id, reason, physical_condition, retired_by, retired_at)
+      INSERT INTO asset_retirements (asset_id, reason, physical_condition, physical_location, retired_by, retired_at)
       SELECT a.id,
              'DATA LAMA (RETIRED SEBELUM FITUR TRASH DIBUAT)',
              'BELUM DIKETAHUI — MOHON UPDATE KONDISI FISIKNYA',
+             'BELUM DIKETAHUI — MOHON UPDATE LOKASI FISIKNYA',
              a.updated_by,
              a.updated_at
       FROM assets a
@@ -188,6 +195,20 @@ async function initDB() {
     UPDATE asset_retirements
     SET physical_condition = 'BELUM DIKETAHUI — MOHON UPDATE KONDISI FISIKNYA'
     WHERE physical_condition = 'Belum diketahui — mohon update kondisi fisiknya'
+  `);
+
+  // Migrasi kecil: baris lama (sebelum kolom physical_location ada) masih
+  // menyimpan info lokasi di kolom physical_condition. Pindahkan isinya
+  // ke physical_location, dan isi physical_condition dengan placeholder
+  // kondisi yang benar. Hanya jalan sekali per baris (physical_location
+  // masih NULL).
+  await safeAlter(`
+    UPDATE asset_retirements
+    SET physical_location = physical_condition,
+        physical_condition = 'BELUM DIKETAHUI — MOHON UPDATE KONDISI FISIKNYA'
+    WHERE physical_location IS NULL
+      AND physical_condition IS NOT NULL
+      AND physical_condition != 'BELUM DIKETAHUI — MOHON UPDATE KONDISI FISIKNYA'
   `);
 
   // =========================
@@ -1651,6 +1672,7 @@ app.post("/api/assets/:id/retire", authenticate, adminOnly, async (req, res) => 
     const id = Number(req.params.id);
     const reason = (req.body?.reason || "").trim();
     const physicalCondition = (req.body?.physicalCondition || "").trim();
+    const physicalLocation = (req.body?.physicalLocation || "").trim();
     if (!Number.isFinite(id)) return res.status(400).json({ error: "invalid id" });
 
     await conn.beginTransaction();
@@ -1673,9 +1695,9 @@ app.post("/api/assets/:id/retire", authenticate, adminOnly, async (req, res) => 
 
     const [ins] = await conn.query(
       `INSERT INTO asset_retirements
-         (asset_id, reason, physical_condition, retired_by)
-       VALUES (?, ?, ?, ?)`,
-      [id, reason || null, physicalCondition || null, req.user?.username || null]
+         (asset_id, reason, physical_condition, physical_location, retired_by)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, reason || null, physicalCondition || null, physicalLocation || null, req.user?.username || null]
     );
 
     await conn.commit();
@@ -1685,7 +1707,7 @@ app.post("/api/assets/:id/retire", authenticate, adminOnly, async (req, res) => 
       action: "ASSET_RETIRE",
       entityType: "ASSET",
       entityId: id,
-      meta: { reason, physicalCondition },
+      meta: { reason, physicalCondition, physicalLocation },
     });
 
     sseBroadcast("assets_changed", { action: "retire", entityId: String(id), by: req.user?.username || null, ts: Date.now() });
@@ -1733,6 +1755,7 @@ app.get("/api/trash", authenticate, async (req, res) => {
          a.location,
          ar.reason,
          ar.physical_condition AS physicalCondition,
+         ar.physical_location AS physicalLocation,
          ar.disposal_status AS disposalStatus,
          ar.disposal_date AS disposalDate,
          ar.disposal_notes AS disposalNotes,
@@ -1767,12 +1790,14 @@ app.put("/api/trash/:retirementId", authenticate, adminOnly, async (req, res) =>
     const [r] = await pool.query(
       `UPDATE asset_retirements SET
          physical_condition = COALESCE(?, physical_condition),
+         physical_location   = COALESCE(?, physical_location),
          disposal_status     = COALESCE(?, disposal_status),
          disposal_date       = COALESCE(?, disposal_date),
          disposal_notes      = COALESCE(?, disposal_notes)
        WHERE id = ? AND restored_at IS NULL`,
       [
         payload.physicalCondition ?? null,
+        payload.physicalLocation ?? null,
         payload.disposalStatus ?? null,
         payload.disposalDate ? String(payload.disposalDate) : null,
         payload.disposalNotes ?? null,

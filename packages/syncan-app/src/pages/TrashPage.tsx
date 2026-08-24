@@ -342,6 +342,7 @@ export default function TrashPage() {
   const [editTarget, setEditTarget] = useState<TrashEntry | null>(null);
   const [editForm, setEditForm] = useState({
     physicalCondition: "",
+    physicalLocation: "",
     disposalStatus: "IN_STORAGE" as DisposalStatus,
     disposalDate: "",
     disposalNotes: "",
@@ -374,7 +375,7 @@ export default function TrashPage() {
 
   // Sorting
   type SortDir = "asc" | "desc";
-  type SortKey = "assetTag" | "name" | "reason" | "physicalCondition" | "retiredAt" | "disposalStatus";
+  type SortKey = "assetTag" | "name" | "reason" | "physicalCondition" | "physicalLocation" | "retiredAt" | "disposalStatus";
 
   const [sortKey, setSortKey] = useState<SortKey>("retiredAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -424,9 +425,9 @@ export default function TrashPage() {
 
   function openEdit(entry: TrashEntry) {
     setEditTarget(entry);
-    setEditTarget(entry);
     setEditForm({
       physicalCondition: entry.physicalCondition || "",
+      physicalLocation: entry.physicalLocation || "",
       disposalStatus: entry.disposalStatus,
       disposalDate: entry.disposalDate ? String(entry.disposalDate).slice(0, 10) : "",
       disposalNotes: entry.disposalNotes || "",
@@ -441,10 +442,15 @@ export default function TrashPage() {
       toast.error("Kondisi fisik wajib diisi");
       return;
     }
+    if (!editForm.physicalLocation.trim()) {
+      toast.error("Lokasi fisik wajib diisi");
+      return;
+    }
 
     try {
       await updateTrashEntry(editTarget.retirementId, {
         physicalCondition: editForm.physicalCondition.trim().toUpperCase(),
+        physicalLocation: editForm.physicalLocation.trim().toUpperCase(),
         disposalStatus: editForm.disposalStatus,
         disposalDate: editForm.disposalStatus === "IN_STORAGE" ? "" : editForm.disposalDate,
         disposalNotes: editForm.disposalNotes.trim().toUpperCase(),
@@ -578,6 +584,7 @@ export default function TrashPage() {
                       { key: "name" as SortKey, label: "Nama" },
                       { key: "reason" as SortKey, label: "Alasan" },
                       { key: "physicalCondition" as SortKey, label: "Kondisi Fisik" },
+                      { key: "physicalLocation" as SortKey, label: "Lokasi Fisik" },
                       { key: "retiredAt" as SortKey, label: "Di-retire" },
                       { key: "disposalStatus" as SortKey, label: "Status" },
                     ]
@@ -640,6 +647,9 @@ export default function TrashPage() {
                       </td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
                         {(e.physicalCondition || "-").toUpperCase()}
+                      </td>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
+                        {(e.physicalLocation || "-").toUpperCase()}
                       </td>
                       <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)" }}>
                         {formatAge(age)} lalu
@@ -755,8 +765,17 @@ export default function TrashPage() {
                   <input
                     style={inputStyle()}
                     value={editForm.physicalCondition}
-                    placeholder='misal: "Kardus gudang B lantai 2"'
+                    placeholder='misal: "Masih Bagus", "Rusak Ringan", "Rusak Berat", "Mati Total", "Dikanibal"'
                     onChange={(ev) => setEditForm((p) => ({ ...p, physicalCondition: ev.target.value }))}
+                  />
+                </Field>
+
+                <Field label="Lokasi Fisik">
+                  <input
+                    style={inputStyle()}
+                    value={editForm.physicalLocation}
+                    placeholder='misal: "Ruang Server Baki", "Almari IT", "Sudah Dibuang"'
+                    onChange={(ev) => setEditForm((p) => ({ ...p, physicalLocation: ev.target.value }))}
                   />
                 </Field>
 

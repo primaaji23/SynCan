@@ -317,7 +317,7 @@ export async function generateAssetTag(location: string): Promise<{ assetTag: st
 // Pindahkan asset ke Trash (status -> RETIRED)
 export async function retireAsset(
   id: string,
-  body: { reason: string; physicalCondition: string }
+  body: { reason: string; physicalCondition: string; physicalLocation: string }
 ): Promise<{ ok: boolean; retirementId: string }> {
   const res = await apiFetch(`/api/assets/${id}/retire`, {
     method: "POST",
@@ -342,6 +342,7 @@ export type TrashEntry = {
   location?: string;
   reason?: string;
   physicalCondition?: string;
+  physicalLocation?: string;
   disposalStatus: DisposalStatus;
   disposalDate?: string | null;
   disposalNotes?: string | null;
@@ -366,6 +367,7 @@ export async function updateTrashEntry(
   retirementId: string,
   payload: Partial<{
     physicalCondition: string;
+    physicalLocation: string;
     disposalStatus: DisposalStatus;
     disposalDate: string;
     disposalNotes: string;

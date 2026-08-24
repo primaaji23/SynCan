@@ -1097,7 +1097,7 @@ export default function AssetsPage() {
     }
 
     const physicalCondition = window.prompt(
-      `Kondisi fisik sekarang? (misal: "Kardus gudang B", "Almari IT lt.2", "Sudah dibuang")`
+      `Kondisi fisik barangnya seperti apa? (misal: "Masih Bagus", "Rusak Ringan", "Rusak Berat", "Mati Total", "Dikanibal", "Hilang/Tidak Lengkap")`
     );
     if (physicalCondition === null) return; // batal
     if (!physicalCondition.trim()) {
@@ -1105,10 +1105,23 @@ export default function AssetsPage() {
       return;
     }
 
+    const physicalLocation = window.prompt(
+      `Barangnya sekarang ada di mana? (misal: "Ruang Server Baki", "Almari IT", "Sudah Dibuang")`
+    );
+    if (physicalLocation === null) return; // batal
+    if (!physicalLocation.trim()) {
+      toast.error("Lokasi fisik wajib diisi");
+      return;
+    }
+
     if (!window.confirm(`Pindahkan ${a.assetTag} - ${a.name} ke Trash?`)) return;
 
     try {
-      await retireAsset(a.id, { reason: reason.trim().toUpperCase(), physicalCondition: physicalCondition.trim().toUpperCase() });
+      await retireAsset(a.id, {
+        reason: reason.trim().toUpperCase(),
+        physicalCondition: physicalCondition.trim().toUpperCase(),
+        physicalLocation: physicalLocation.trim().toUpperCase(),
+      });
       toast.success("Asset dipindahkan ke Trash");
       await reload();
     } catch (e: any) {
