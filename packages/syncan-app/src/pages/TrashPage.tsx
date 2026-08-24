@@ -9,6 +9,7 @@ import {
   type DisposalStatus,
 } from "../services/itService";
 import { useToast } from "../components/ToastProvider";
+import AssetHistoryModal from "../components/AssetHistoryModal";
 
 // =====================
 // Theme (sama pola dengan AssetsPage/InventoryPage)
@@ -351,6 +352,8 @@ export default function TrashPage() {
   const [restoreTarget, setRestoreTarget] = useState<TrashEntry | null>(null);
   const [restoreStatus, setRestoreStatus] = useState<"IN_USE" | "IN_STOCK" | "REPAIR">("IN_STOCK");
 
+  const [historyEntry, setHistoryEntry] = useState<TrashEntry | null>(null);
+
   async function reload() {
     setLoading(true);
     try {
@@ -444,6 +447,10 @@ export default function TrashPage() {
     }
     if (!editForm.physicalLocation.trim()) {
       toast.error("Lokasi fisik wajib diisi");
+      return;
+    }
+    if (editForm.disposalStatus !== "IN_STORAGE" && !editForm.disposalDate) {
+      toast.error("Tanggal pembuangan/penjualan/donasi wajib diisi");
       return;
     }
 
@@ -666,6 +673,7 @@ export default function TrashPage() {
                         {canWrite ? (
                           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                             <button style={buttonStyle()} onClick={() => openEdit(e)}>EDIT</button>
+                            <button style={buttonStyle()} onClick={() => setHistoryEntry(e)}>HISTORY</button>
                             <button style={buttonStyle("primary")} onClick={() => openRestore(e)}>RESTORE</button>
                           </div>
                         ) : (
@@ -761,7 +769,7 @@ export default function TrashPage() {
               </div>
 
               <form onSubmit={submitEdit} style={{ padding: 16, display: "grid", gap: 12 }}>
-                <Field label="Kondisi Fisik">
+                <Field label="Kondisi Fisik *">
                   <input
                     style={inputStyle()}
                     value={editForm.physicalCondition}
@@ -770,7 +778,7 @@ export default function TrashPage() {
                   />
                 </Field>
 
-                <Field label="Lokasi Fisik">
+                <Field label="Lokasi Fisik *">
                   <input
                     style={inputStyle()}
                     value={editForm.physicalLocation}
@@ -793,7 +801,7 @@ export default function TrashPage() {
                 </Field>
 
                 {editForm.disposalStatus !== "IN_STORAGE" ? (
-                  <Field label="Tanggal Pembuangan/Penjualan/Donasi">
+                  <Field label="Tanggal Pembuangan/Penjualan/Donasi *">
                     <input
                       type="date"
                       style={inputStyle()}
@@ -857,6 +865,14 @@ export default function TrashPage() {
               </form>
             </div>
           </div>
+        ) : null}
+
+        {historyEntry ? (
+          <AssetHistoryModal
+            assetId={historyEntry.assetId}
+            assetName={historyEntry.name}
+            onClose={() => setHistoryEntry(null)}
+          />
         ) : null}
       </div>
     </AppLayout>
