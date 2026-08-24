@@ -1040,17 +1040,21 @@ app.get("/api/dashboard/activity-trends", authenticate, async (req, res) => {
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
 
-      const assetCount = assetActivities.find(a => 
-        a.date.toISOString().split('T')[0] === dateStr
-      )?.count || 0;
+      // const assetCount = assetActivities.find(a => 
+      //   a.date.toISOString().split('T')[0] === dateStr
+      // )?.count || 0;
 
-      const inventoryCount = inventoryActivities.find(a => 
-        a.date.toISOString().split('T')[0] === dateStr
-      )?.count || 0;
+      // const inventoryCount = inventoryActivities.find(a => 
+      //   a.date.toISOString().split('T')[0] === dateStr
+      // )?.count || 0;
 
-      const tonerCount = tonerActivities.find(a => 
-        a.date.toISOString().split('T')[0] === dateStr
-      )?.count || 0;
+      // const tonerCount = tonerActivities.find(a => 
+      //   a.date.toISOString().split('T')[0] === dateStr
+      // )?.count || 0;
+
+      const assetCount = assetActivities.find(a => a.date === dateStr)?.count || 0;
+      const inventoryCount = inventoryActivities.find(a => a.date === dateStr)?.count || 0;
+      const tonerCount = tonerActivities.find(a => a.date === dateStr)?.count || 0;
 
       // Only show every 5th day to reduce data points
       if (i % 5 === 0) {
@@ -2564,7 +2568,7 @@ app.get("/api/activity", authenticate, adminOnly, async (req, res) => {
       total: Number(countRow.total) || 0,
       limit,
       offset,
-      logs: rows.map((r) => ({ ...r, id: String(r.id), entityId: r.entityId ? String(r.entityId) : null, meta: r.meta ? JSON.parse(r.meta) : null })),
+      logs: rows.map((r) => ({ ...r, id: String(r.id), entityId: r.entityId ? String(r.entityId) : null, meta: r.meta ? (typeof r.meta === 'string' ? JSON.parse(r.meta) : r.meta) : null })),
     });
   } catch (err) {
     console.error(err);
