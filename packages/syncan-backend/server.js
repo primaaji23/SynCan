@@ -1791,6 +1791,11 @@ app.put("/api/trash/:retirementId", authenticate, adminOnly, async (req, res) =>
       return res.status(400).json({ error: "invalid disposalStatus" });
     }
 
+    // ambil asset_id dulu, supaya history-nya nyambung ke asset (bukan ke retirement row)
+    const [assetRow] = await pool.query(`SELECT asset_id FROM asset_retirements WHERE id = ?`, [retirementId]);
+    const assetId = assetRow?.[0]?.asset_id;
+    if (!assetId) return res.status(404).json({ error: "not found" });
+
     const [r] = await pool.query(
       `UPDATE asset_retirements SET
          physical_condition = COALESCE(?, physical_condition),
@@ -1814,8 +1819,8 @@ app.put("/api/trash/:retirementId", authenticate, adminOnly, async (req, res) =>
     await logActivity({
       req,
       action: "ASSET_TRASH_UPDATE",
-      entityType: "ASSET_RETIREMENT",
-      entityId: retirementId,
+      entityType: "ASSET",
+      entityId: assetId,
       meta: payload,
     });
 

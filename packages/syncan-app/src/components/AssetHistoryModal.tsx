@@ -353,6 +353,35 @@ function renderDetail(log: any) {
       return <DetailGrid rows={rows} />;
     }
 
+    // 1b) Fitur Trash: pindah ke Trash, edit data di Trash, restore dari Trash
+    if (action === "ASSET_RETIRE") {
+      const rows: Array<[string, any]> = [];
+      if (m.reason) rows.push(["Alasan", String(m.reason)]);
+      if (m.physicalCondition) rows.push(["Kondisi Fisik", String(m.physicalCondition)]);
+      if (m.physicalLocation) rows.push(["Lokasi Fisik", String(m.physicalLocation)]);
+      if (!rows.length) rows.push(["Action", "Dipindahkan ke Trash"]);
+      return <DetailGrid rows={rows} />;
+    }
+
+    if (action === "ASSET_TRASH_UPDATE") {
+      const rows: Array<[string, any]> = [];
+      if (m.physicalCondition) rows.push(["Kondisi Fisik", String(m.physicalCondition)]);
+      if (m.physicalLocation) rows.push(["Lokasi Fisik", String(m.physicalLocation)]);
+      if (m.disposalStatus) rows.push(["Status Pembuangan", String(m.disposalStatus)]);
+      if (m.disposalDate) rows.push(["Tanggal Pembuangan", toYMDLocal(m.disposalDate)]);
+      if (m.disposalNotes) rows.push(["Catatan", String(m.disposalNotes)]);
+      if (!rows.length) rows.push(["Action", "Update data di Trash"]);
+      return <DetailGrid rows={rows} />;
+    }
+
+    if (action === "ASSET_RESTORE_FROM_TRASH") {
+      const rows: Array<[string, any]> = [
+        ["Action", "Restore dari Trash"],
+      ];
+      if (m.toStatus) rows.push(["Status Baru", String(m.toStatus)]);
+      return <DetailGrid rows={rows} />;
+    }
+
     // 2) AS _UPDATE khusus restore (meta: { restored: true })
     const restoredFlag =
       m.restored === true ||
