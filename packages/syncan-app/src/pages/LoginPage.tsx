@@ -39,7 +39,7 @@ export default function LoginPage() {
             : 'Tanggal tidak diketahui';
 
           setErrorMessage(
-            `❌ Akun dinonaktifkan\n\n` +
+            `Akun dinonaktifkan\n\n` +
             `Alasan: ${data.disabledReason || 'Tidak disebutkan'}\n` +
             `Dinonaktifkan oleh: ${data.disabledBy || 'Administrator'}\n` +
             `Tanggal: ${disabledDate}\n\n` +
@@ -90,7 +90,7 @@ export default function LoginPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(to right, #b91c1c, #dc2626);
+          background: linear-gradient(135deg, #64748b, #475569);
           font-family: 'Segoe UI', sans-serif;
           overflow: hidden; 
           position: fixed; 
@@ -193,7 +193,7 @@ export default function LoginPage() {
 
         .form-group input:focus {
           outline: none;
-          border-color: #dc2626;
+          border-color: #72aef2;
         }
 
         .toggle-btn {
@@ -217,7 +217,7 @@ export default function LoginPage() {
 
         .login-btn {
           width: 100%;
-          background: #dc2626;
+          background: #64748b;
           color: white;
           padding: 14px;
           font-size: 1rem;
@@ -234,7 +234,7 @@ export default function LoginPage() {
         }
 
         .login-btn:hover {
-          background: #b91c1c;
+          background: #475569;
         }
 
         .login-btn:disabled {
@@ -263,7 +263,7 @@ export default function LoginPage() {
         }
 
         .powered-by b {
-          color: #dc2626;
+          color: #72aef2;
         }
 
         .support-info {
