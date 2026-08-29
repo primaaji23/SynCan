@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import {
   fetchInventoryMovements,
   fetchInventoryActivity,
@@ -786,57 +786,151 @@ export default function InventoryHistoryModal({
     return logsSorted.slice(start, start + pageSize);
   }, [logsSorted, activityPageSafe]);
 
-  function exportMovementsToExcel() {
-    const aoa: any[][] = [
-      ["Date", "Type", "Qty", "Ref", "Purchase Date", "Purchase Location", "Destination", "User", "Asset"],
-      ...movementsSorted.map((m) => [
-        new Date(m.createdAt).toLocaleString(),
-        m.type,
-        m.qty,
-        m.ref && String(m.ref).trim() ? m.ref : "-",
-        m.purchaseDate ? fmtDateOnly(m.purchaseDate) : "-",
-        m.purchaseLocation || "-",
-        m.type === "OUT" ? m.destination || "-" : "-",
-        m.createdBy || "-",
-        m.targetAssetTag ? `${m.targetAssetTag} - ${m.targetAssetName || ""}` : m.targetAssetId || "-",
-      ]),
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [
-      { wch: 20 },
-      { wch: 8 },
-      { wch: 8 },
-      { wch: 16 },
-      { wch: 14 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 16 },
-      { wch: 26 },
-    ];
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Movements");
-    XLSX.writeFile(wb, `Movements_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
+  async function downloadWorkbook(wb: ExcelJS.Workbook, filename: string) {
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
-  function exportActivityToExcel() {
-    const aoa: any[][] = [
-      ["Date", "Action", "User", "Detail"],
-      ...logsSorted.map((l) => [
-        new Date(l.createdAt).toLocaleString(),
-        l.action,
-        l.actorUsername || "-",
-        activityDetailToText(l.action, l.meta),
-      ]),
+  // Tone warna badge, sama persis dengan Pill yang tampil di layar
+  const TYPE_TONE: Record<string, { bg: string; fg: string; bd: string }> = {
+    IN: { bg: "FFECFDF5", fg: "FF047857", bd: "FFA7F3D0" },
+    OUT: { bg: "FFEFF6FF", fg: "FF1D4ED8", bd: "FFBFDBFE" },
+    ADJUST: { bg: "FFFFFBEB", fg: "FFB45309", bd: "FFFDE68A" },
+  };
+
+  const HEADER_FILL = "FFEFF6FF";
+  const HEADER_TEXT = "FF0F172A";
+  const ROW_ALT_FILL = "FFF8FAFC";
+  const BORDER_COLOR = "FFE2E8F0";
+
+  function styleHeaderRow(row: ExcelJS.Row) {
+    row.eachCell((cell) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+      cell.font = { bold: true, color: { argb: HEADER_TEXT }, size: 11 };
+      cell.alignment = { vertical: "middle", horizontal: "left" };
+      cell.border = { bottom: { style: "thin", color: { argb: BORDER_COLOR } } };
+    });
+    row.height = 22;
+  }
+
+  function styleBodyRow(row: ExcelJS.Row, idx: number) {
+    row.eachCell((cell) => {
+      if (idx % 2 === 1) {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ROW_ALT_FILL } };
+      }
+      cell.border = { bottom: { style: "thin", color: { argb: BORDER_COLOR } } };
+      cell.alignment = { vertical: "middle" };
+      cell.font = { ...(cell.font || {}), bold: false };
+    });
+  }
+
+  async function exportMovementsToExcel() {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Movements");
+
+    ws.columns = [
+      { header: "Date", key: "date", width: 20 },
+      { header: "Type", key: "type", width: 10 },
+      { header: "Qty", key: "qty", width: 8 },
+      { header: "Ref", key: "ref", width: 18 },
+      { header: "Purchase", key: "purchase", width: 22 },
+      { header: "Destination", key: "destination", width: 20 },
+      { header: "User", key: "user", width: 14 },
+      { header: "Asset", key: "asset", width: 26 },
     ];
 
-    const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = [{ wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 70 }];
+    styleHeaderRow(ws.getRow(1));
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Activity");
-    XLSX.writeFile(wb, `Activity_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
+    movementsSorted.forEach((m, idx) => {
+      const purchase = m.purchaseDate
+        ? `${fmtDateOnly(m.purchaseDate)}${m.purchaseLocation ? ` - ${m.purchaseLocation}` : ""}`
+        : "-";
+
+      const row = ws.addRow({
+        date: new Date(m.createdAt).toLocaleString(),
+        type: m.type,
+        qty: m.qty,
+        ref: m.ref && String(m.ref).trim() ? m.ref : "-",
+        purchase,
+        destination: m.type === "OUT" ? m.destination || "-" : "-",
+        user: m.createdBy || "-",
+        asset: m.targetAssetTag ? `${m.targetAssetTag} - ${m.targetAssetName || ""}` : m.targetAssetId || "-",
+      });
+
+      styleBodyRow(row, idx);
+
+      // Bold di kolom Date & Qty, badge warna di kolom Type
+      row.getCell("date").font = { bold: true, color: { argb: "FF334155" } };
+      row.getCell("qty").font = { bold: true, color: { argb: "FF0F172A" } };
+
+      const tone = TYPE_TONE[m.type] || TYPE_TONE.OUT;
+      const typeCell = row.getCell("type");
+      typeCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: tone.bg } };
+      typeCell.font = { bold: true, color: { argb: tone.fg } };
+      typeCell.alignment = { vertical: "middle", horizontal: "center" };
+      typeCell.border = {
+        top: { style: "thin", color: { argb: tone.bd } },
+        bottom: { style: "thin", color: { argb: tone.bd } },
+        left: { style: "thin", color: { argb: tone.bd } },
+        right: { style: "thin", color: { argb: tone.bd } },
+      };
+    });
+
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    await downloadWorkbook(wb, `Movements_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
+  }
+
+  async function exportActivityToExcel() {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Activity");
+
+    ws.columns = [
+      { header: "Date", key: "date", width: 20 },
+      { header: "Action", key: "action", width: 18 },
+      { header: "User", key: "user", width: 14 },
+      { header: "Detail", key: "detail", width: 70 },
+    ];
+
+    styleHeaderRow(ws.getRow(1));
+
+    logsSorted.forEach((l, idx) => {
+      const row = ws.addRow({
+        date: new Date(l.createdAt).toLocaleString(),
+        action: l.action,
+        user: l.actorUsername || "-",
+        detail: activityDetailToText(l.action, l.meta),
+      });
+
+      styleBodyRow(row, idx);
+
+      row.getCell("date").font = { bold: true, color: { argb: "FF334155" } };
+
+      const actionCell = row.getCell("action");
+      actionCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+      actionCell.font = { bold: true, color: { argb: "FF475569" } };
+      actionCell.alignment = { vertical: "middle", horizontal: "center" };
+      actionCell.border = {
+        top: { style: "thin", color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+        left: { style: "thin", color: { argb: "FFE2E8F0" } },
+        right: { style: "thin", color: { argb: "FFE2E8F0" } },
+      };
+
+      row.getCell("detail").alignment = { vertical: "middle", wrapText: true };
+    });
+
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    await downloadWorkbook(wb, `Activity_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
   }
 
   // kalau data berubah, pastiin page tidak out-of-range
@@ -935,7 +1029,7 @@ export default function InventoryHistoryModal({
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {!loading ? (
               <ActionButton
-                label="⬇ Export Excel"
+                label="Export Excel"
                 disabled={tab === "movements" ? movementsSorted.length === 0 : logsSorted.length === 0}
                 onClick={tab === "movements" ? exportMovementsToExcel : exportActivityToExcel}
               />
