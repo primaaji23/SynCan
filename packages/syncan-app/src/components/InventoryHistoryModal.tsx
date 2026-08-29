@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 import {
   fetchInventoryMovements,
   fetchInventoryActivity,
@@ -436,6 +437,109 @@ function renderActivityDetail(action: string, meta: any) {
   );
 }
 
+// Versi teks polos dari renderActivityDetail, dipakai untuk export Excel
+// (satu sel tidak bisa isi JSX, jadi baris di-gabung pakai " | ")
+function activityDetailToText(action: string, meta: any): string {
+  if (!meta) return "-";
+
+  let m: any = meta;
+  if (typeof meta === "string") {
+    try {
+      m = JSON.parse(meta);
+    } catch {
+      return String(meta);
+    }
+  }
+
+  const cleanValue = (v: any) => {
+    if (v === undefined || v === null || v === "") return "-";
+    return String(v);
+  };
+
+  if (action === "INV_CREATE") {
+    let sku = m.sku;
+    let name = m.name;
+    if (m.after && typeof m.after === "object") {
+      sku = m.after.sku || sku;
+      name = m.after.name || name;
+    }
+    return [
+      `SKU: ${cleanValue(sku)}`,
+      `Name: ${cleanValue(name)}`,
+      `Category: ${cleanValue(m.category || m.after?.category)}`,
+      `Stock: ${cleanValue(m.stock || m.after?.stock)}`,
+      `Location: ${cleanValue(m.location || m.after?.location)}`,
+      `Capacity: ${cleanValue(m.capacity || m.after?.capacity)}`,
+    ].join(" | ");
+  }
+
+  if (action === "INV_UPDATE") {
+    const restoredFlag =
+      m?.restored === true ||
+      m?.restored === "true" ||
+      (m?.after && (m.after.restored === true || m.after.restored === "true"));
+    if (restoredFlag) return "Action: RESTORE (aktifkan kembali inventory)";
+
+    const hasBefore = m && typeof m === "object" && m.before && m.after;
+    const before = hasBefore ? (m.before as any) : null;
+    const after = hasBefore ? (m.after as any) : m;
+
+    const fields: { key: string; label: string }[] = [
+      { key: "sku", label: "SKU" },
+      { key: "name", label: "Name" },
+      { key: "category", label: "Category" },
+      { key: "unit", label: "Unit" },
+      { key: "location", label: "Location" },
+      { key: "capacity", label: "Capacity" },
+      { key: "stock", label: "Stock" },
+      { key: "minStock", label: "Min Stock" },
+      { key: "notes", label: "Notes" },
+    ];
+
+    const parts: string[] = [];
+    for (const f of fields) {
+      const rawOld = before ? before[f.key] : undefined;
+      const rawNew = after ? after[f.key] : undefined;
+      const oldStr = rawOld === undefined || rawOld === null ? "" : String(rawOld).trim();
+      const newStr = rawNew === undefined || rawNew === null ? "" : String(rawNew).trim();
+
+      if (hasBefore) {
+        if (oldStr === newStr) continue;
+      } else if (!newStr) continue;
+
+      parts.push(hasBefore ? `${f.label}: ${oldStr || "-"} -> ${newStr || "-"}` : `${f.label}: ${newStr || "-"}`);
+    }
+
+    if (!parts.length) return "-";
+    return parts.join(" | ");
+  }
+
+  if (action === "INV_MOVE") {
+    const parts = [`Type: ${m.type ?? "-"}`, `Qty: ${m.qty ?? "-"}`, `Ref: ${m.ref && String(m.ref).trim() ? m.ref : "-"}`];
+    if ((m.targetAssetId ?? null) !== null) parts.push(`Target Asset ID: ${m.targetAssetId}`);
+    if (m.type === "IN") {
+      parts.push(`Purchase Date: ${m.purchaseDate || "-"}`);
+      parts.push(`Purchase Location: ${m.purchaseLocation || "-"}`);
+    }
+    if (m.type === "OUT") parts.push(`Destination: ${m.destination || "-"}`);
+    return parts.join(" | ");
+  }
+
+  if (action === "INV_DELETE") {
+    const soft = m.soft === true;
+    const reason = m.reason;
+    const parts = [`Soft delete: ${soft ? "YES" : "NO"}`];
+    if (reason) parts.push(`Reason: ${reason}`);
+    return parts.join(" | ");
+  }
+
+  try {
+    return JSON.stringify(m);
+  } catch {
+    return "-";
+  }
+}
+
 function fmtDateOnly(d?: string | null) {
   if (!d) return "-";
   // ambil YYYY-MM-DD saja, aman untuk ISO / DATE
@@ -682,6 +786,59 @@ export default function InventoryHistoryModal({
     return logsSorted.slice(start, start + pageSize);
   }, [logsSorted, activityPageSafe]);
 
+  function exportMovementsToExcel() {
+    const aoa: any[][] = [
+      ["Date", "Type", "Qty", "Ref", "Purchase Date", "Purchase Location", "Destination", "User", "Asset"],
+      ...movementsSorted.map((m) => [
+        new Date(m.createdAt).toLocaleString(),
+        m.type,
+        m.qty,
+        m.ref && String(m.ref).trim() ? m.ref : "-",
+        m.purchaseDate ? fmtDateOnly(m.purchaseDate) : "-",
+        m.purchaseLocation || "-",
+        m.type === "OUT" ? m.destination || "-" : "-",
+        m.createdBy || "-",
+        m.targetAssetTag ? `${m.targetAssetTag} - ${m.targetAssetName || ""}` : m.targetAssetId || "-",
+      ]),
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [
+      { wch: 20 },
+      { wch: 8 },
+      { wch: 8 },
+      { wch: 16 },
+      { wch: 14 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 26 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Movements");
+    XLSX.writeFile(wb, `Movements_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
+  }
+
+  function exportActivityToExcel() {
+    const aoa: any[][] = [
+      ["Date", "Action", "User", "Detail"],
+      ...logsSorted.map((l) => [
+        new Date(l.createdAt).toLocaleString(),
+        l.action,
+        l.actorUsername || "-",
+        activityDetailToText(l.action, l.meta),
+      ]),
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{ wch: 20 }, { wch: 16 }, { wch: 16 }, { wch: 70 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Activity");
+    XLSX.writeFile(wb, `Activity_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
+  }
+
   // kalau data berubah, pastiin page tidak out-of-range
   useEffect(() => {
     if (movementPage > movementTotalPages) setMovementPage(movementTotalPages);
@@ -775,12 +932,22 @@ export default function InventoryHistoryModal({
             />
           </div>
 
-          <div style={{ color: "var(--hm-muted)", fontWeight: 900, fontSize: 12 }}>
-            {loading
-              ? "Loading..."
-              : tab === "movements"
-                ? `Stock Movements • Page ${movementPageSafe}/${movementTotalPages}`
-                : `Activity Log • Page ${activityPageSafe}/${activityTotalPages}`}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {!loading ? (
+              <ActionButton
+                label="⬇ Export Excel"
+                disabled={tab === "movements" ? movementsSorted.length === 0 : logsSorted.length === 0}
+                onClick={tab === "movements" ? exportMovementsToExcel : exportActivityToExcel}
+              />
+            ) : null}
+
+            <div style={{ color: "var(--hm-muted)", fontWeight: 900, fontSize: 12 }}>
+              {loading
+                ? "Loading..."
+                : tab === "movements"
+                  ? `Stock Movements • Page ${movementPageSafe}/${movementTotalPages}`
+                  : `Activity Log • Page ${activityPageSafe}/${activityTotalPages}`}
+            </div>
           </div>
         </div>
 
