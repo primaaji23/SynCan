@@ -212,6 +212,35 @@ async function initDB() {
   `);
 
   // =========================
+  // ASSET HANDOVERS (Surat Tanda Terima)
+  // =========================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS asset_handovers (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      handover_number VARCHAR(64) NOT NULL,
+      asset_id BIGINT UNSIGNED NOT NULL,
+
+      handover_date DATE NOT NULL,
+      receiver_name VARCHAR(150) NOT NULL,
+      receiver_division VARCHAR(150) NOT NULL,
+      receiver_phone VARCHAR(50) NOT NULL,
+
+      handed_over_by VARCHAR(100) NULL,
+      gen_month TINYINT UNSIGNED NOT NULL,
+      gen_year SMALLINT UNSIGNED NOT NULL,
+      seq_no INT UNSIGNED NOT NULL,
+
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_handover_number (handover_number),
+      KEY idx_handover_asset (asset_id),
+      KEY idx_handover_period (gen_year, gen_month),
+      CONSTRAINT fk_handover_asset FOREIGN KEY (asset_id) REFERENCES assets(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // =========================
   // INVENTORY ITEMS
   // =========================
   await pool.query(`
@@ -461,7 +490,7 @@ await safeAlter(
 
       action ENUM(
         'ASSET_CREATE','ASSET_UPDATE','ASSET_DELETE',
-        'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH',
+        'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH','ASSET_HANDOVER',
         'INV_CREATE','INV_UPDATE','INV_DELETE','INV_MOVE',
         'USER_CREATE','USER_UPDATE','USER_DELETE',
         'TONER_CREATE','TONER_UPDATE','TONER_DELETE','TONER_MOVE'
@@ -486,7 +515,7 @@ await safeAlter(
   await safeAlter(`
     ALTER TABLE activity_logs MODIFY COLUMN action ENUM(
       'ASSET_CREATE','ASSET_UPDATE','ASSET_DELETE',
-      'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH',
+      'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH','ASSET_HANDOVER',
       'INV_CREATE','INV_UPDATE','INV_DELETE','INV_MOVE',
       'USER_CREATE','USER_UPDATE','USER_DELETE',
       'TONER_CREATE','TONER_UPDATE','TONER_DELETE','TONER_MOVE'
@@ -1186,8 +1215,23 @@ app.get("/api/assets", authenticate, async (req, res) => {
               is_active AS isActive,
               disabled_at AS disabledAt,
               disabled_by AS disabledBy,
-              disabled_reason AS disabledReason
+              disabled_reason AS disabledReason,
+              lh.handover_number AS lastHandoverNumber,
+              lh.handover_date AS lastHandoverDate,
+              lh.receiver_name AS lastHandoverReceiverName,
+              lh.receiver_division AS lastHandoverReceiverDivision,
+              lh.receiver_phone AS lastHandoverReceiverPhone,
+              lh.handed_over_by AS lastHandoverBy
        FROM assets
+       LEFT JOIN (
+         SELECT ah1.*
+         FROM asset_handovers ah1
+         INNER JOIN (
+           SELECT asset_id, MAX(created_at) AS max_created
+           FROM asset_handovers
+           GROUP BY asset_id
+         ) latest ON latest.asset_id = ah1.asset_id AND latest.max_created = ah1.created_at
+       ) lh ON lh.asset_id = assets.id
        ${whereSql}
        ORDER BY updated_at DESC, id DESC`,
       params
@@ -3464,6 +3508,92 @@ if (STORAGE_ENABLED) {
     }
   });
 }
+
+// =======================================================
+// ASSET HANDOVER (Surat Tanda Terima Asset)
+// =======================================================
+app.post("/api/assets/:id/handover", authenticate, adminOnly, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const assetId = Number(req.params.id);
+    const { receiverName, receiverDivision, receiverPhone, handoverDate } = req.body || {};
+
+    if (!Number.isFinite(assetId)) return res.status(400).json({ error: "invalid id" });
+    if (!receiverName || !String(receiverName).trim()) return res.status(400).json({ error: "Nama penerima wajib diisi" });
+    if (!receiverDivision || !String(receiverDivision).trim()) return res.status(400).json({ error: "Divisi penerima wajib diisi" });
+    if (!receiverPhone || !String(receiverPhone).trim()) return res.status(400).json({ error: "No WA penerima wajib diisi" });
+
+    const [assetRows] = await pool.query(
+      `SELECT id, asset_tag AS assetTag, name, type, brand, model, serial_number AS serialNumber, status
+       FROM assets WHERE id = ?`,
+      [assetId]
+    );
+    const asset = assetRows?.[0];
+    if (!asset) return res.status(404).json({ error: "Asset tidak ditemukan" });
+
+    const now = new Date();
+    const genMonth = now.getMonth() + 1;
+    const genYear = now.getFullYear();
+    const finalDate = (handoverDate && String(handoverDate).trim()) || now.toISOString().slice(0, 10);
+
+    await conn.beginTransaction();
+
+    const [countRows] = await conn.query(
+      `SELECT COUNT(*) AS cnt FROM asset_handovers WHERE gen_year = ? AND gen_month = ? FOR UPDATE`,
+      [genYear, genMonth]
+    );
+    const seqNo = (Number(countRows?.[0]?.cnt) || 0) + 1;
+
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const pad4 = (n) => String(n).padStart(4, "0");
+    const handoverNumber = `ST/CJI/IT/${pad2(genMonth)}/${genYear}/${pad4(seqNo)}`;
+
+    const [ins] = await conn.query(
+      `INSERT INTO asset_handovers
+         (handover_number, asset_id, handover_date, receiver_name, receiver_division, receiver_phone, handed_over_by, gen_month, gen_year, seq_no)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        handoverNumber,
+        assetId,
+        finalDate,
+        String(receiverName).trim().toUpperCase(),
+        String(receiverDivision).trim().toUpperCase(),
+        String(receiverPhone).trim(),
+        req.user?.username || null,
+        genMonth,
+        genYear,
+        seqNo,
+      ]
+    );
+
+    await conn.commit();
+
+    await logActivity({
+      req,
+      action: "ASSET_HANDOVER",
+      entityType: "ASSET",
+      entityId: assetId,
+      meta: { handoverNumber, receiverName, receiverDivision, receiverPhone },
+    });
+
+    res.json({
+      id: String(ins.insertId),
+      handoverNumber,
+      handoverDate: finalDate,
+      receiverName: String(receiverName).trim().toUpperCase(),
+      receiverDivision: String(receiverDivision).trim().toUpperCase(),
+      receiverPhone: String(receiverPhone).trim(),
+      handedOverBy: req.user?.username || "-",
+      asset,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: "Failed to create handover" });
+  } finally {
+    conn.release();
+  }
+});
 
 // =======================================================
 // SERVER

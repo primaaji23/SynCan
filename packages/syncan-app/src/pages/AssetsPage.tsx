@@ -8,6 +8,7 @@ import {
   disableAsset,
   restoreAsset,
   retireAsset,
+  createAssetHandover,
   type Asset,
   type AssetStatus,
   type AssetType,
@@ -460,7 +461,7 @@ function AutocompleteTextInput({
 }
 
 function buttonStyle(
-  variant: "primary" | "ghost" | "danger" = "ghost"
+  variant: "primary" | "ghost" | "danger" | "warning" = "ghost"
 ): React.CSSProperties {
   const base: React.CSSProperties = {
     padding: "9px 12px",
@@ -486,6 +487,14 @@ function buttonStyle(
       border: "1px solid #FCA5A5",
       background: "#FEF2F2",
       color: "#B91C1C",
+    };
+  }
+  if (variant === "warning") {
+    return {
+      ...base,
+      border: "1px solid #F59E0B",
+      background: "#FFFBEB",
+      color: "#B45309",
     };
   }
   return {
@@ -636,6 +645,15 @@ export default function AssetsPage() {
   const [form, setForm] = useState<FormState>(defaultForm);
 
   const [historyAsset, setHistoryAsset] = useState<{ id: string; name: string } | null>(null);
+
+  const [handoverTarget, setHandoverTarget] = useState<Asset | null>(null);
+  const [handoverForm, setHandoverForm] = useState({
+    receiverName: "",
+    receiverDivision: "",
+    receiverPhone: "",
+    handoverDate: "",
+  });
+  const [handoverSubmitting, setHandoverSubmitting] = useState(false);
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -1129,6 +1147,193 @@ export default function AssetsPage() {
     }
   }
 
+  function openHandoverModal(a: Asset) {
+    setHandoverTarget(a);
+    setHandoverForm({
+      receiverName: "",
+      receiverDivision: "",
+      receiverPhone: "",
+      handoverDate: new Date().toISOString().slice(0, 10),
+    });
+  }
+
+  function buildHandoverPrintHtml(data: {
+    handoverNumber: string;
+    handoverDate: string;
+    receiverName: string;
+    receiverDivision: string;
+    receiverPhone: string;
+    handedOverBy: string;
+    asset: { assetTag?: string; name?: string; type?: string; brand?: string; model?: string; serialNumber?: string };
+  }): string {
+    const tglIndo = (() => {
+      const d = new Date(data.handoverDate);
+      if (isNaN(d.getTime())) return data.handoverDate;
+      return d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+    })();
+
+    const a = data.asset;
+
+    return `<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<title>${data.handoverNumber}</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 13px; margin: 0; padding: 0; }
+  .title { text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; }
+  .subtitle { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 24px; }
+  .meta-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+  .meta-table td { padding: 3px 0; vertical-align: top; }
+  .meta-table td.label { width: 160px; font-weight: 700; }
+  .meta-table td.colon { width: 14px; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 30px; }
+  table.items th, table.items td { border: 1px solid #111827; padding: 8px; font-size: 12px; text-align: left; }
+  table.items th { background: #F3F4F6; font-weight: 700; text-transform: uppercase; }
+  .statement { margin: 18px 0; font-size: 13px; line-height: 1.6; }
+  .sign-wrap { display: flex; justify-content: space-between; margin-top: 50px; }
+  .sign-box { width: 45%; text-align: center; }
+  .sign-space { height: 70px; }
+  .sign-name { border-top: 1px solid #111827; padding-top: 6px; font-weight: 700; display: inline-block; min-width: 200px; }
+  .sign-label { font-weight: 700; margin-bottom: 4px; }
+  @media print {
+    .no-print { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="title">Surat Tanda Terima Asset</div>
+  <div class="subtitle">Nomor: ${data.handoverNumber}</div>
+
+  <table class="meta-table">
+    <tr><td class="label">Tanggal</td><td class="colon">:</td><td>${tglIndo}</td></tr>
+    <tr><td class="label">Nama Penerima</td><td class="colon">:</td><td>${data.receiverName}</td></tr>
+    <tr><td class="label">Divisi Penerima</td><td class="colon">:</td><td>${data.receiverDivision}</td></tr>
+    <tr><td class="label">No. WA Penerima</td><td class="colon">:</td><td>${data.receiverPhone}</td></tr>
+  </table>
+
+  <div class="statement">
+    Dengan ini menyatakan telah terjadi serah terima asset IT dengan rincian sebagai berikut:
+  </div>
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:32px;">No</th>
+        <th>Asset Tag</th>
+        <th>Nama Asset</th>
+        <th>Tipe</th>
+        <th>Merk / Model</th>
+        <th>Serial Number</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>${a.assetTag || "-"}</td>
+        <td>${a.name || "-"}</td>
+        <td>${a.type || "-"}</td>
+        <td>${[a.brand, a.model].filter(Boolean).join(" / ") || "-"}</td>
+        <td>${a.serialNumber || "-"}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="sign-wrap">
+    <div class="sign-box">
+      <div class="sign-label">Yang Menyerahkan,</div>
+      <div class="sign-space"></div>
+      <div class="sign-name">${data.handedOverBy || "-"}</div>
+    </div>
+    <div class="sign-box">
+      <div class="sign-label">Yang Menerima,</div>
+      <div class="sign-space"></div>
+      <div class="sign-name">${data.receiverName || "-"}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+  }
+
+  function openPrintWindow(html: string) {
+    const win = window.open("", "_blank");
+    if (!win) {
+      toast.error("Popup diblokir browser. Izinkan popup untuk print Serah Terima.");
+      return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        // ignore
+      }
+    }, 400);
+  }
+
+  // Print ulang dokumen serah terima yang SUDAH PERNAH dibuat (tanpa generate baru)
+  function printExistingHandover(a: Asset) {
+    if (!a.lastHandoverNumber) return;
+    const html = buildHandoverPrintHtml({
+      handoverNumber: a.lastHandoverNumber,
+      handoverDate: a.lastHandoverDate || "",
+      receiverName: a.lastHandoverReceiverName || "-",
+      receiverDivision: a.lastHandoverReceiverDivision || "-",
+      receiverPhone: a.lastHandoverReceiverPhone || "-",
+      handedOverBy: a.lastHandoverBy || "-",
+      asset: a,
+    });
+    openPrintWindow(html);
+  }
+
+  async function submitHandover(e: React.FormEvent) {
+    e.preventDefault();
+    if (!handoverTarget) return;
+
+    if (!handoverForm.receiverName.trim()) {
+      toast.error("Nama penerima wajib diisi");
+      return;
+    }
+    if (!handoverForm.receiverDivision.trim()) {
+      toast.error("Divisi penerima wajib diisi");
+      return;
+    }
+    if (!handoverForm.receiverPhone.trim()) {
+      toast.error("No WA penerima wajib diisi");
+      return;
+    }
+
+    if (!window.confirm(`Generate nomor Serah Terima untuk ${handoverTarget.assetTag} - ${handoverTarget.name}? Nomor tidak bisa diulang/dibatalkan setelah dibuat.`)) {
+      return;
+    }
+
+    setHandoverSubmitting(true);
+    try {
+      const result = await createAssetHandover(handoverTarget.id, {
+        receiverName: handoverForm.receiverName.trim(),
+        receiverDivision: handoverForm.receiverDivision.trim(),
+        receiverPhone: handoverForm.receiverPhone.trim(),
+        handoverDate: handoverForm.handoverDate || undefined,
+      });
+
+      const html = buildHandoverPrintHtml(result);
+      openPrintWindow(html);
+
+      toast.success(`Serah Terima ${result.handoverNumber} berhasil dibuat`);
+      setHandoverTarget(null);
+      await reload();
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal membuat Serah Terima");
+    } finally {
+      setHandoverSubmitting(false);
+    }
+  }
+
   return (
     <AppLayout>
       <div style={useThemeVars(theme)}>
@@ -1383,6 +1588,17 @@ export default function AssetsPage() {
 
                           {canWrite && a.status !== "RETIRED" ? (
                             <button style={buttonStyle("danger")} onClick={() => onRetire(a)}>TRASH</button>
+                          ) : null}
+
+                          {canWrite && a.status !== "RETIRED" ? (
+                            a.lastHandoverNumber ? (
+                              <>
+                                <button style={buttonStyle("warning")} onClick={() => printExistingHandover(a)}>PRINT</button>
+                                <button style={buttonStyle("warning")} onClick={() => openHandoverModal(a)}>GENERATE ULANG</button>
+                              </>
+                            ) : (
+                              <button style={buttonStyle("warning")} onClick={() => openHandoverModal(a)}>PRINT</button>
+                            )
                           ) : null}
                         </div>
                       </td>
@@ -1859,6 +2075,113 @@ export default function AssetsPage() {
         ) : null}
 
         <div style={{ height: 8 }} />
+
+        {/* Modal Serah Terima Asset (generate baru / generate ulang) */}
+        {handoverTarget ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15,23,42,0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+              zIndex: 999,
+            }}
+          >
+            <div
+              style={{ background: "var(--card-bg)", borderRadius: 14, width: "min(520px, 100%)", boxShadow: "0 12px 32px rgba(0,0,0,0.18)" }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  padding: 16,
+                  borderBottom: "1px solid var(--card-divider)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <div style={{ fontWeight: 900, color: "var(--text-1)", fontSize: 18 }}>
+                  SERAH TERIMA — {handoverTarget.assetTag}
+                </div>
+                <IconCloseButton onClick={() => setHandoverTarget(null)} />
+              </div>
+
+              <form onSubmit={submitHandover} style={{ padding: 16, display: "grid", gap: 12 }}>
+                <div style={{ color: "var(--muted)", fontWeight: 700, fontSize: 13 }}>
+                  {handoverTarget.name} {handoverTarget.brand ? `- ${handoverTarget.brand}` : ""} {handoverTarget.model || ""}
+                </div>
+
+                {handoverTarget.lastHandoverNumber ? (
+                  <div
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      background: "#FFFBEB",
+                      border: "1px solid #FDE68A",
+                      color: "#B45309",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Sebelumnya sudah diserahkan ke <b>{handoverTarget.lastHandoverReceiverName}</b> ({handoverTarget.lastHandoverReceiverDivision})
+                    {handoverTarget.lastHandoverDate ? ` pada ${String(handoverTarget.lastHandoverDate).slice(0, 10)}` : ""}. Isi data penerima baru di bawah untuk generate nomor Serah Terima baru.
+                  </div>
+                ) : null}
+
+                <Field label="Tanggal Serah Terima">
+                  <input
+                    type="date"
+                    style={inputStyle()}
+                    value={handoverForm.handoverDate}
+                    onChange={(e) => setHandoverForm((p) => ({ ...p, handoverDate: e.target.value }))}
+                  />
+                </Field>
+
+                <Field label="Nama Penerima">
+                  <input
+                    style={inputStyle()}
+                    value={handoverForm.receiverName}
+                    onChange={(e) => setHandoverForm((p) => ({ ...p, receiverName: e.target.value }))}
+                    placeholder="Nama lengkap penerima"
+                  />
+                </Field>
+
+                <Field label="Divisi Penerima">
+                  <input
+                    style={inputStyle()}
+                    value={handoverForm.receiverDivision}
+                    onChange={(e) => setHandoverForm((p) => ({ ...p, receiverDivision: e.target.value }))}
+                    placeholder="misal: Finance, MD, HRD"
+                  />
+                </Field>
+
+                <Field label="No. WA Penerima">
+                  <input
+                    style={inputStyle()}
+                    value={handoverForm.receiverPhone}
+                    onChange={(e) => setHandoverForm((p) => ({ ...p, receiverPhone: e.target.value }))}
+                    placeholder="08xxxxxxxxxx"
+                  />
+                </Field>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+                  <button type="button" style={buttonStyle()} onClick={() => setHandoverTarget(null)} disabled={handoverSubmitting}>
+                    Batal
+                  </button>
+                  <button type="submit" style={buttonStyle("warning")} disabled={handoverSubmitting}>
+                    {handoverSubmitting ? "Memproses..." : "Print"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        ) : null}
 
         {historyAsset && (
           <AssetHistoryModal

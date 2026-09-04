@@ -44,6 +44,14 @@ export type Asset = {
   updatedAt?: string;
   monitorType?: string;
   storageType?: string;
+
+  // info handover (serah terima) terakhir - null kalau belum pernah
+  lastHandoverNumber?: string | null;
+  lastHandoverDate?: string | null;
+  lastHandoverReceiverName?: string | null;
+  lastHandoverReceiverDivision?: string | null;
+  lastHandoverReceiverPhone?: string | null;
+  lastHandoverBy?: string | null;
 };
 
 export type InventoryCategory =
@@ -604,4 +612,37 @@ export async function fetchRecentActivityTrends(): Promise<{
 }> {
   const res = await apiFetch("/api/dashboard/activity-trends");
   return json<{ trends: any[] }>(res);
+}
+// =====================
+// Asset Handover (Surat Tanda Terima)
+// =====================
+export type AssetHandoverResult = {
+  id: string;
+  handoverNumber: string;
+  handoverDate: string;
+  receiverName: string;
+  receiverDivision: string;
+  receiverPhone: string;
+  handedOverBy: string;
+  asset: {
+    id: string;
+    assetTag: string;
+    name: string;
+    type: string;
+    brand?: string;
+    model?: string;
+    serialNumber?: string;
+    status: string;
+  };
+};
+
+export async function createAssetHandover(
+  assetId: string,
+  payload: { receiverName: string; receiverDivision: string; receiverPhone: string; handoverDate?: string }
+): Promise<AssetHandoverResult> {
+  const res = await apiFetch(`/api/assets/${assetId}/handover`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return json<AssetHandoverResult>(res);
 }
