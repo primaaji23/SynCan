@@ -1180,23 +1180,24 @@ export default function AssetsPage() {
 <meta charset="UTF-8" />
 <title>${data.handoverNumber}</title>
 <style>
-  @page { size: A4; margin: 20mm 18mm; }
+  @page { size: A5; margin: 0; }
   * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 13px; margin: 0; padding: 0; }
-  .title { text-align: center; font-size: 18px; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; }
-  .subtitle { text-align: center; font-size: 13px; font-weight: 700; margin-bottom: 24px; }
-  .meta-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
-  .meta-table td { padding: 3px 0; vertical-align: top; }
-  .meta-table td.label { width: 160px; font-weight: 700; }
-  .meta-table td.colon { width: 14px; }
-  table.items { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 30px; }
-  table.items th, table.items td { border: 1px solid #111827; padding: 8px; font-size: 12px; text-align: left; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 12px; margin: 0; padding: 0; }
+  .sheet { padding: 12mm 14mm; }
+  .title { text-align: center; font-size: 15px; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; }
+  .subtitle { text-align: center; font-size: 12px; font-weight: 700; margin-bottom: 16px; }
+  .meta-table { width: 100%; margin-bottom: 14px; border-collapse: collapse; }
+  .meta-table td { padding: 2px 0; vertical-align: top; }
+  .meta-table td.label { width: 130px; font-weight: 700; }
+  .meta-table td.colon { width: 12px; }
+  table.items { width: 100%; border-collapse: collapse; margin-top: 6px; margin-bottom: 20px; }
+  table.items th, table.items td { border: 1px solid #111827; padding: 6px; font-size: 11px; text-align: left; }
   table.items th { background: #F3F4F6; font-weight: 700; text-transform: uppercase; }
-  .statement { margin: 18px 0; font-size: 13px; line-height: 1.6; }
-  .sign-wrap { display: flex; justify-content: space-between; margin-top: 50px; }
+  .statement { margin: 12px 0; font-size: 12px; line-height: 1.5; }
+  .sign-wrap { display: flex; justify-content: space-between; margin-top: 26px; }
   .sign-box { width: 45%; text-align: center; }
-  .sign-space { height: 70px; }
-  .sign-name { border-top: 1px solid #111827; padding-top: 6px; font-weight: 700; display: inline-block; min-width: 200px; }
+  .sign-space { height: 50px; }
+  .sign-name { border-top: 1px solid #111827; padding-top: 6px; font-weight: 700; display: inline-block; min-width: 160px; }
   .sign-label { font-weight: 700; margin-bottom: 4px; }
   @media print {
     .no-print { display: none; }
@@ -1204,53 +1205,55 @@ export default function AssetsPage() {
 </style>
 </head>
 <body>
-  <div class="title">Surat Tanda Terima Asset</div>
-  <div class="subtitle">Nomor: ${data.handoverNumber}</div>
+  <div class="sheet">
+    <div class="title">BERITA ACARA SERAH TERIMA BARANG INVENTARIS</div>
+    <div class="subtitle">Nomor: ${data.handoverNumber}</div>
 
-  <table class="meta-table">
-    <tr><td class="label">Tanggal</td><td class="colon">:</td><td>${tglIndo}</td></tr>
-    <tr><td class="label">Nama Penerima</td><td class="colon">:</td><td>${data.receiverName}</td></tr>
-    <tr><td class="label">Divisi Penerima</td><td class="colon">:</td><td>${data.receiverDivision}</td></tr>
-    <tr><td class="label">No. WA Penerima</td><td class="colon">:</td><td>${data.receiverPhone}</td></tr>
-  </table>
+    <table class="meta-table">
+      <tr><td class="label">Tanggal</td><td class="colon">:</td><td>${tglIndo}</td></tr>
+      <tr><td class="label">Nama Penerima</td><td class="colon">:</td><td>${data.receiverName}</td></tr>
+      <tr><td class="label">Divisi Penerima</td><td class="colon">:</td><td>${data.receiverDivision}</td></tr>
+      <tr><td class="label">No. WA Penerima</td><td class="colon">:</td><td>${data.receiverPhone}</td></tr>
+    </table>
 
-  <div class="statement">
-    Dengan ini menyatakan telah terjadi serah terima asset IT dengan rincian sebagai berikut:
-  </div>
-
-  <table class="items">
-    <thead>
-      <tr>
-        <th style="width:32px;">No</th>
-        <th>Asset Tag</th>
-        <th>Nama Asset</th>
-        <th>Tipe</th>
-        <th>Merk / Model</th>
-        <th>Serial Number</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>1</td>
-        <td>${a.assetTag || "-"}</td>
-        <td>${a.name || "-"}</td>
-        <td>${a.type || "-"}</td>
-        <td>${[a.brand, a.model].filter(Boolean).join(" / ") || "-"}</td>
-        <td>${a.serialNumber || "-"}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="sign-wrap">
-    <div class="sign-box">
-      <div class="sign-label">Yang Menyerahkan,</div>
-      <div class="sign-space"></div>
-      <div class="sign-name">${data.handedOverBy || "-"}</div>
+    <div class="statement">
+      Dengan ini menyatakan telah terjadi serah terima Inventaris IT dengan rincian sebagai berikut:
     </div>
-    <div class="sign-box">
-      <div class="sign-label">Yang Menerima,</div>
-      <div class="sign-space"></div>
-      <div class="sign-name">${data.receiverName || "-"}</div>
+
+    <table class="items">
+      <thead>
+        <tr>
+          <th style="width:28px;">No</th>
+          <th>Asset Tag</th>
+          <th>Nama Asset</th>
+          <th>Tipe</th>
+          <th>Merk / Model</th>
+          <th>Serial Number</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>${a.assetTag || "-"}</td>
+          <td>${a.name || "-"}</td>
+          <td>${a.type || "-"}</td>
+          <td>${[a.brand, a.model].filter(Boolean).join(" / ") || "-"}</td>
+          <td>${a.serialNumber || "-"}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sign-wrap">
+      <div class="sign-box">
+        <div class="sign-label">Yang Menyerahkan,</div>
+        <div class="sign-space"></div>
+        <div class="sign-name">${(data.handedOverBy || "-").toUpperCase()}</div>
+      </div>
+      <div class="sign-box">
+        <div class="sign-label">Yang Menerima,</div>
+        <div class="sign-space"></div>
+        <div class="sign-name">${data.receiverName || "-"}</div>
+      </div>
     </div>
   </div>
 </body>

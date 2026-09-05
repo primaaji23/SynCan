@@ -1184,7 +1184,7 @@ app.get("/api/assets", authenticate, async (req, res) => {
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     const [rows] = await pool.query(
-            `SELECT id,
+            `SELECT assets.id,
               asset_tag AS assetTag,
               name,
               type,
@@ -1210,8 +1210,8 @@ app.get("/api/assets", authenticate, async (req, res) => {
               storage_type AS storageType,
               created_by AS createdBy,     
               updated_by AS updatedBy,     
-              created_at AS createdAt,
-              updated_at AS updatedAt,
+              assets.created_at AS createdAt,
+              assets.updated_at AS updatedAt,
               is_active AS isActive,
               disabled_at AS disabledAt,
               disabled_by AS disabledBy,
