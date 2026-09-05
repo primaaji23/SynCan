@@ -1206,7 +1206,7 @@ export default function AssetsPage() {
 </head>
 <body>
   <div class="sheet">
-    <div class="title">BERITA ACARA SERAH TERIMA BARANG INVENTARIS</div>
+    <div class="title">BERITA ACARA SERAH TERIMA<br>BARANG INVENTARIS</div>
     <div class="subtitle">Nomor: ${data.handoverNumber}</div>
 
     <table class="meta-table">
@@ -1217,7 +1217,7 @@ export default function AssetsPage() {
     </table>
 
     <div class="statement">
-      Dengan ini menyatakan telah terjadi serah terima Inventaris IT dengan rincian sebagai berikut:
+      Yang bertanda tangan di bawah ini, pihak yang menyerahkan dan pihak yang menerima, dengan ini menyatakan telah melaksanakan serah terima Barang Inventaris IT dengan rincian sebagai berikut:
     </div>
 
     <table class="items">
@@ -1537,6 +1537,8 @@ export default function AssetsPage() {
                   </th>
 
                   <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em" }}>Action</th>
+
+                  <th style={{ textAlign: "left", padding: "10px 8px", borderBottom: "1px solid var(--table-border)", color: "var(--text-2)", fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em" }}>Serah Terima</th>
                 </tr>
               </thead>
 
@@ -1607,17 +1609,22 @@ export default function AssetsPage() {
                           {canWrite && a.status !== "RETIRED" ? (
                             <button style={buttonStyle("danger")} onClick={() => onRetire(a)}>TRASH</button>
                           ) : null}
-
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 8px", borderBottom: "1px solid var(--table-border)" }}>
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                           {canWrite && a.status !== "RETIRED" ? (
                             a.lastHandoverNumber ? (
                               <>
                                 <button style={buttonStyle("warning")} onClick={() => printExistingHandover(a)}>PRINT</button>
-                                <button style={buttonStyle("warning")} onClick={() => openHandoverModal(a)}>GENERATE ULANG</button>
+                                <button style={buttonStyle("warning")} onClick={() => openHandoverModal(a)}>REGENERATE</button>
                               </>
                             ) : (
                               <button style={buttonStyle("warning")} onClick={() => openHandoverModal(a)}>PRINT</button>
                             )
-                          ) : null}
+                          ) : (
+                            <span style={{ color: "var(--muted)", fontWeight: 800 }}>-</span>
+                          )}
                         </div>
                       </td>
                     </tr>
