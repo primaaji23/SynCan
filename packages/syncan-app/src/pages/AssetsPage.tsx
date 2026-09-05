@@ -1261,25 +1261,40 @@ export default function AssetsPage() {
   }
 
   function openPrintWindow(html: string) {
-    const win = window.open("", "_blank");
-    if (!win) {
-      toast.error("Popup diblokir browser. Izinkan popup untuk print Serah Terima.");
-      return;
-    }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    setTimeout(() => {
-      try {
-        win.focus();
-        win.print();
-      } catch {
-        // ignore
-      }
-    }, 400);
-  }
+  const existing = document.getElementById("handover-print-frame");
+  if (existing) existing.remove();
 
-  // Print ulang dokumen serah terima yang SUDAH PERNAH dibuat (tanpa generate baru)
+  const iframe = document.createElement("iframe");
+  iframe.id = "handover-print-frame";
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.visibility = "hidden";
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    iframe.remove();
+  };
+
+  iframe.onload = () => {
+    try {
+      const win = iframe.contentWindow;
+      if (!win) return cleanup();
+      win.focus();
+      win.print();
+      win.onafterprint = cleanup;
+      setTimeout(cleanup, 60000);
+    } catch {
+      cleanup();
+    }
+  };
+
+  iframe.srcdoc = html;
+}
+
   function printExistingHandover(a: Asset) {
     if (!a.lastHandoverNumber) return;
     const html = buildHandoverPrintHtml({
