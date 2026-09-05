@@ -646,3 +646,9 @@ export async function createAssetHandover(
   });
   return json<AssetHandoverResult>(res);
 }
+
+export async function getLatestAssetHandover(assetId: string): Promise<AssetHandoverResult | null> {
+  const res = await apiFetch(`/api/assets/${assetId}/handover/latest`);
+  if (res.status === 404) return null;
+  return json<AssetHandoverResult>(res);
+}

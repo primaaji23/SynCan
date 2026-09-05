@@ -3512,6 +3512,55 @@ if (STORAGE_ENABLED) {
 // =======================================================
 // ASSET HANDOVER (Surat Tanda Terima Asset)
 // =======================================================
+// Ambil handover TERAKHIR untuk 1 asset (buat cek "sudah pernah diserah-terima
+// kan belum" dan buat reprint tanpa generate nomor baru)
+app.get("/api/assets/:id/handover/latest", authenticate, async (req, res) => {
+  try {
+    const assetId = Number(req.params.id);
+    if (!Number.isFinite(assetId)) return res.status(400).json({ error: "invalid id" });
+
+    const [rows] = await pool.query(
+      `SELECT
+         ah.id, ah.handover_number AS handoverNumber, ah.handover_date AS handoverDate,
+         ah.receiver_name AS receiverName, ah.receiver_division AS receiverDivision,
+         ah.receiver_phone AS receiverPhone, ah.handed_over_by AS handedOverBy,
+         a.id AS assetIdRaw, a.asset_tag AS assetTag, a.name, a.type, a.brand, a.model, a.serial_number AS serialNumber, a.status
+       FROM asset_handovers ah
+       JOIN assets a ON a.id = ah.asset_id
+       WHERE ah.asset_id = ?
+       ORDER BY ah.created_at DESC
+       LIMIT 1`,
+      [assetId]
+    );
+
+    const row = rows?.[0];
+    if (!row) return res.status(404).json({ error: "not found" });
+
+    res.json({
+      id: String(row.id),
+      handoverNumber: row.handoverNumber,
+      handoverDate: row.handoverDate,
+      receiverName: row.receiverName,
+      receiverDivision: row.receiverDivision,
+      receiverPhone: row.receiverPhone,
+      handedOverBy: row.handedOverBy,
+      asset: {
+        id: String(row.assetIdRaw),
+        assetTag: row.assetTag,
+        name: row.name,
+        type: row.type,
+        brand: row.brand,
+        model: row.model,
+        serialNumber: row.serialNumber,
+        status: row.status,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load handover" });
+  }
+});
+
 app.post("/api/assets/:id/handover", authenticate, adminOnly, async (req, res) => {
   const conn = await pool.getConnection();
   try {
