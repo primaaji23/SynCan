@@ -36,6 +36,7 @@ export type Asset = {
   ckTas?: 0 | 1;
   ckKeyboard?: 0 | 1;
   ckUsbHub?: 0 | 1;
+  ckCharger?: 0 | 1;
   isActive?: number; // 1|0 (optional, for soft delete UI)
   disabledAt?: string | null;
   disabledBy?: string | null;
@@ -633,6 +634,17 @@ export type AssetHandoverResult = {
     model?: string;
     serialNumber?: string;
     status: string;
+    ckUsbLan?: 0 | 1 | boolean;
+    ckMouse?: 0 | 1 | boolean;
+    ckTas?: 0 | 1 | boolean;
+    ckKeyboard?: 0 | 1 | boolean;
+    ckUsbHub?: 0 | 1 | boolean;
+    ckCharger?: 0 | 1 | boolean;
+    cpuSpec?: string;
+    ramSpec?: string;
+    hddSpec?: string;
+    vgaCard?: string;
+    monitorType?: string;
   };
 };
 

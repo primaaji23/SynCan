@@ -587,6 +587,7 @@ type FormState = {
   ckTas: boolean;
   ckKeyboard: boolean;
   ckUsbHub: boolean;
+  ckCharger: boolean;
 
   monitorType: string;
   storageType: string;
@@ -617,6 +618,7 @@ const defaultForm: FormState = {
   ckTas: false,
   ckKeyboard: false,
   ckUsbHub: false,
+  ckCharger: false,
 
   monitorType: "",
   storageType: "",
@@ -1003,6 +1005,7 @@ export default function AssetsPage() {
       ckTas: !!a.ckTas,
       ckKeyboard: !!a.ckKeyboard,
       ckUsbHub: !!a.ckUsbHub,
+      ckCharger: !!a.ckCharger,
 
       monitorType: (a.monitorType || "").toUpperCase(),
       storageType: (a.storageType || "").toUpperCase(),
@@ -1039,6 +1042,7 @@ export default function AssetsPage() {
       ckTas: form.ckTas ? 1 : 0,
       ckKeyboard: form.ckKeyboard ? 1 : 0,
       ckUsbHub: form.ckUsbHub ? 1 : 0,
+      ckCharger: form.ckCharger ? 1 : 0,
 
       monitorType: normUpper(form.monitorType),
       storageType: normUpper(form.storageType),
@@ -1164,7 +1168,25 @@ export default function AssetsPage() {
     receiverDivision: string;
     receiverPhone: string;
     handedOverBy: string;
-    asset: { assetTag?: string; name?: string; type?: string; brand?: string; model?: string; serialNumber?: string };
+    asset: {
+      assetTag?: string;
+      name?: string;
+      type?: string;
+      brand?: string;
+      model?: string;
+      serialNumber?: string;
+      ckUsbLan?: 0 | 1 | boolean;
+      ckMouse?: 0 | 1 | boolean;
+      ckTas?: 0 | 1 | boolean;
+      ckKeyboard?: 0 | 1 | boolean;
+      ckUsbHub?: 0 | 1 | boolean;
+      ckCharger?: 0 | 1 | boolean;
+      cpuSpec?: string;
+      ramSpec?: string;
+      hddSpec?: string;
+      vgaCard?: string;
+      monitorType?: string;
+    };
   }): string {
     const tglIndo = (() => {
       const d = new Date(data.handoverDate);
@@ -1173,6 +1195,64 @@ export default function AssetsPage() {
     })();
 
     const a = data.asset;
+    const typeUpper = (a.type || "").toUpperCase();
+    const isLaptopType = typeUpper === "LAPTOP";
+    const isPcType = typeUpper === "PC";
+    const isSpecType = isLaptopType || isPcType;
+
+    const checklistItems = [
+      { label: "USB LAN", checked: !!a.ckUsbLan },
+      { label: "Mouse", checked: !!a.ckMouse },
+      { label: "Tas", checked: !!a.ckTas },
+      { label: "Keyboard", checked: !!a.ckKeyboard },
+      { label: "USB Hub", checked: !!a.ckUsbHub },
+      { label: "Charger", checked: !!a.ckCharger },
+    ].filter((it) => it.checked);
+
+    const checklistHtml = isLaptopType && checklistItems.length
+      ? `
+    <div class="statement" style="margin-bottom:6px;"><strong>Kelengkapan Laptop:</strong></div>
+    <table class="items" style="margin-bottom:20px;">
+      <thead>
+        <tr>
+          <th>Kelengkapan</th>
+          <th>Keterangan</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${checklistItems
+          .map(
+            (it) => `
+        <tr>
+          <td>${it.label}</td>
+          <td>&nbsp;</td>
+        </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`
+      : "";
+
+    const specRows = [
+      { label: "CPU", value: a.cpuSpec },
+      { label: "RAM", value: a.ramSpec },
+      { label: "HDD / Storage", value: a.hddSpec },
+      { label: "VGA Card", value: a.vgaCard },
+      ...(isPcType ? [{ label: "Monitor", value: a.monitorType }] : []),
+    ];
+
+    const specHtml = isSpecType
+      ? `
+    <div class="statement" style="margin-bottom:6px;"><strong>Spesifikasi:</strong></div>
+    <table class="meta-table" style="margin-bottom:18px;">
+      ${specRows
+        .map(
+          (r) => `
+      <tr><td class="label">${r.label}</td><td class="colon">:</td><td>${r.value || "-"}</td></tr>`
+        )
+        .join("")}
+    </table>`
+      : "";
 
     return `<!DOCTYPE html>
 <html lang="id">
@@ -1180,7 +1260,7 @@ export default function AssetsPage() {
 <meta charset="UTF-8" />
 <title>${data.handoverNumber}</title>
 <style>
-  @page { size: A5; margin: 0; }
+  @page { size: 148mm 210mm; margin: 0; }
   * { box-sizing: border-box; }
   body { font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 12px; margin: 0; padding: 0; }
   .sheet { padding: 12mm 14mm; }
@@ -1242,6 +1322,10 @@ export default function AssetsPage() {
         </tr>
       </tbody>
     </table>
+
+    ${specHtml}
+
+    ${checklistHtml}
 
     <div class="sign-wrap">
       <div class="sign-box">
@@ -2017,6 +2101,7 @@ export default function AssetsPage() {
                           { key: "ckTas", label: "Tas" },
                           { key: "ckKeyboard", label: "Keyboard" },
                           { key: "ckUsbHub", label: "USB Hub" },
+                          { key: "ckCharger", label: "Charger" },
                         ].map((item) => {
                           const key = item.key as keyof FormState;
                           const checked = form[key] as unknown as boolean;

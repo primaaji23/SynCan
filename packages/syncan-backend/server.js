@@ -420,6 +420,9 @@ async function initDB() {
   await safeAlter(
     `ALTER TABLE assets ADD COLUMN ck_usb_hub TINYINT(1) NOT NULL DEFAULT 0 AFTER ck_keyboard`
   );
+  await safeAlter(
+    `ALTER TABLE assets ADD COLUMN ck_charger TINYINT(1) NOT NULL DEFAULT 0 AFTER ck_usb_hub`
+  );
 
   // Idempotent upgrades (toner)
   await safeAlter(
@@ -923,6 +926,7 @@ app.get("/api/dashboard/summary", authenticate, async (req, res) => {
               ck_tas AS ckTas,
               ck_keyboard AS ckKeyboard,
               ck_usb_hub AS ckUsbHub,
+              ck_charger AS ckCharger,
               monitor_type AS monitorType,
               storage_type AS storageType,
               created_at AS createdAt,
@@ -1206,6 +1210,7 @@ app.get("/api/assets", authenticate, async (req, res) => {
               ck_tas AS ckTas,
               ck_keyboard AS ckKeyboard,
               ck_usb_hub AS ckUsbHub,
+              ck_charger AS ckCharger,
               monitor_type AS monitorType,
               storage_type AS storageType,
               created_by AS createdBy,     
@@ -1269,6 +1274,7 @@ app.post("/api/assets", authenticate, adminOnly, async (req, res) => {
       ckTas,
       ckKeyboard,
       ckUsbHub,
+      ckCharger,
       monitorType,
       storageType,
     } = req.body || {};
@@ -1293,11 +1299,11 @@ app.post("/api/assets", authenticate, adminOnly, async (req, res) => {
          assigned_to, location,
          purchase_date, warranty_end, notes,
          cpu_spec, ram_spec, hdd_spec, vga_card,
-         ck_usb_lan, ck_mouse, ck_tas, ck_keyboard, ck_usb_hub,
+         ck_usb_lan, ck_mouse, ck_tas, ck_keyboard, ck_usb_hub, ck_charger,
          monitor_type, storage_type,
          created_by
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         finalAssetTag,
         String(name),
@@ -1320,6 +1326,7 @@ app.post("/api/assets", authenticate, adminOnly, async (req, res) => {
         ckTas ? 1 : 0,
         ckKeyboard ? 1 : 0,
         ckUsbHub ? 1 : 0,
+        ckCharger ? 1 : 0,
         monitorType ?? null,
         storageType ?? null,
         req.user?.username || null,
@@ -1412,6 +1419,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
          ck_tas,
          ck_keyboard,
          ck_usb_hub,
+         ck_charger,
          monitor_type,
          storage_type
        FROM assets
@@ -1426,6 +1434,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
     const ckTas = payload.ckTas === undefined ? null : (payload.ckTas ? 1 : 0);
     const ckKeyboard = payload.ckKeyboard === undefined ? null : (payload.ckKeyboard ? 1 : 0);
     const ckUsbHub = payload.ckUsbHub === undefined ? null : (payload.ckUsbHub ? 1 : 0);
+    const ckCharger = payload.ckCharger === undefined ? null : (payload.ckCharger ? 1 : 0);
 
     await pool.query(
       `UPDATE assets SET
@@ -1450,6 +1459,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
          ck_tas        = COALESCE(?, ck_tas),
          ck_keyboard   = COALESCE(?, ck_keyboard),
          ck_usb_hub    = COALESCE(?, ck_usb_hub),
+         ck_charger    = COALESCE(?, ck_charger),
          monitor_type  = COALESCE(?, monitor_type),
          storage_type  = COALESCE(?, storage_type),
          updated_by    = ?
@@ -1476,6 +1486,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
         ckTas,
         ckKeyboard,
         ckUsbHub,
+        ckCharger,
         payload.monitorType ?? null,
         payload.storageType ?? null,
         req.user?.username || null,
@@ -1507,6 +1518,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
          ck_tas,
          ck_keyboard,
          ck_usb_hub,
+         ck_charger,
          monitor_type,
          storage_type
        FROM assets
@@ -1541,6 +1553,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
             ckTas: Boolean(beforeRow.ck_tas),
             ckKeyboard: Boolean(beforeRow.ck_keyboard),
             ckUsbHub: Boolean(beforeRow.ck_usb_hub),
+            ckCharger: Boolean(beforeRow.ck_charger),
             monitorType: beforeRow.monitor_type,
             storageType: beforeRow.storage_type,
           }
@@ -1569,6 +1582,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
             ckTas: Boolean(afterRow.ck_tas),
             ckKeyboard: Boolean(afterRow.ck_keyboard),
             ckUsbHub: Boolean(afterRow.ck_usb_hub),
+            ckCharger: Boolean(afterRow.ck_charger),
             monitorType: afterRow.monitor_type,
             storageType: afterRow.storage_type,
           }
@@ -3524,7 +3538,10 @@ app.get("/api/assets/:id/handover/latest", authenticate, async (req, res) => {
          ah.id, ah.handover_number AS handoverNumber, ah.handover_date AS handoverDate,
          ah.receiver_name AS receiverName, ah.receiver_division AS receiverDivision,
          ah.receiver_phone AS receiverPhone, ah.handed_over_by AS handedOverBy,
-         a.id AS assetIdRaw, a.asset_tag AS assetTag, a.name, a.type, a.brand, a.model, a.serial_number AS serialNumber, a.status
+         a.id AS assetIdRaw, a.asset_tag AS assetTag, a.name, a.type, a.brand, a.model, a.serial_number AS serialNumber, a.status,
+         a.ck_usb_lan AS ckUsbLan, a.ck_mouse AS ckMouse, a.ck_tas AS ckTas, a.ck_keyboard AS ckKeyboard,
+         a.ck_usb_hub AS ckUsbHub, a.ck_charger AS ckCharger,
+         a.cpu_spec AS cpuSpec, a.ram_spec AS ramSpec, a.hdd_spec AS hddSpec, a.vga_card AS vgaCard, a.monitor_type AS monitorType
        FROM asset_handovers ah
        JOIN assets a ON a.id = ah.asset_id
        WHERE ah.asset_id = ?
@@ -3553,6 +3570,17 @@ app.get("/api/assets/:id/handover/latest", authenticate, async (req, res) => {
         model: row.model,
         serialNumber: row.serialNumber,
         status: row.status,
+        ckUsbLan: row.ckUsbLan,
+        ckMouse: row.ckMouse,
+        ckTas: row.ckTas,
+        ckKeyboard: row.ckKeyboard,
+        ckUsbHub: row.ckUsbHub,
+        ckCharger: row.ckCharger,
+        cpuSpec: row.cpuSpec,
+        ramSpec: row.ramSpec,
+        hddSpec: row.hddSpec,
+        vgaCard: row.vgaCard,
+        monitorType: row.monitorType,
       },
     });
   } catch (err) {
@@ -3573,7 +3601,10 @@ app.post("/api/assets/:id/handover", authenticate, adminOnly, async (req, res) =
     if (!receiverPhone || !String(receiverPhone).trim()) return res.status(400).json({ error: "No WA penerima wajib diisi" });
 
     const [assetRows] = await pool.query(
-      `SELECT id, asset_tag AS assetTag, name, type, brand, model, serial_number AS serialNumber, status
+      `SELECT id, asset_tag AS assetTag, name, type, brand, model, serial_number AS serialNumber, status,
+              ck_usb_lan AS ckUsbLan, ck_mouse AS ckMouse, ck_tas AS ckTas, ck_keyboard AS ckKeyboard,
+              ck_usb_hub AS ckUsbHub, ck_charger AS ckCharger,
+              cpu_spec AS cpuSpec, ram_spec AS ramSpec, hdd_spec AS hddSpec, vga_card AS vgaCard, monitor_type AS monitorType
        FROM assets WHERE id = ?`,
       [assetId]
     );

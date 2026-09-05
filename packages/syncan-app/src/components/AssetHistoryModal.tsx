@@ -482,6 +482,7 @@ function renderDetail(log: any) {
       addField("ckTas", "Tas", { checklist: true });
       addField("ckKeyboard", "Keyboard", { checklist: true });
       addField("ckUsbHub", "USB Hub", { checklist: true });
+      addField("ckCharger", "Charger", { checklist: true });
 
       if (!rows.length) {
         return (
