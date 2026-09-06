@@ -36,6 +36,7 @@ export type Asset = {
   ckTas?: 0 | 1;
   ckKeyboard?: 0 | 1;
   ckUsbHub?: 0 | 1;
+  ckCharger?: 0 | 1;
   isActive?: number; // 1|0 (optional, for soft delete UI)
   disabledAt?: string | null;
   disabledBy?: string | null;
@@ -44,6 +45,14 @@ export type Asset = {
   updatedAt?: string;
   monitorType?: string;
   storageType?: string;
+
+  // info handover (serah terima) terakhir - null kalau belum pernah
+  lastHandoverNumber?: string | null;
+  lastHandoverDate?: string | null;
+  lastHandoverReceiverName?: string | null;
+  lastHandoverReceiverDivision?: string | null;
+  lastHandoverReceiverPhone?: string | null;
+  lastHandoverBy?: string | null;
 };
 
 export type InventoryCategory =
@@ -604,4 +613,54 @@ export async function fetchRecentActivityTrends(): Promise<{
 }> {
   const res = await apiFetch("/api/dashboard/activity-trends");
   return json<{ trends: any[] }>(res);
+}
+// =====================
+// Asset Handover (Surat Tanda Terima)
+// =====================
+export type AssetHandoverResult = {
+  id: string;
+  handoverNumber: string;
+  handoverDate: string;
+  receiverName: string;
+  receiverDivision: string;
+  receiverPhone: string;
+  handedOverBy: string;
+  asset: {
+    id: string;
+    assetTag: string;
+    name: string;
+    type: string;
+    brand?: string;
+    model?: string;
+    serialNumber?: string;
+    status: string;
+    ckUsbLan?: 0 | 1 | boolean;
+    ckMouse?: 0 | 1 | boolean;
+    ckTas?: 0 | 1 | boolean;
+    ckKeyboard?: 0 | 1 | boolean;
+    ckUsbHub?: 0 | 1 | boolean;
+    ckCharger?: 0 | 1 | boolean;
+    cpuSpec?: string;
+    ramSpec?: string;
+    hddSpec?: string;
+    vgaCard?: string;
+    monitorType?: string;
+  };
+};
+
+export async function createAssetHandover(
+  assetId: string,
+  payload: { receiverName: string; receiverDivision: string; receiverPhone: string; handoverDate?: string }
+): Promise<AssetHandoverResult> {
+  const res = await apiFetch(`/api/assets/${assetId}/handover`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return json<AssetHandoverResult>(res);
+}
+
+export async function getLatestAssetHandover(assetId: string): Promise<AssetHandoverResult | null> {
+  const res = await apiFetch(`/api/assets/${assetId}/handover/latest`);
+  if (res.status === 404) return null;
+  return json<AssetHandoverResult>(res);
 }

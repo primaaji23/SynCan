@@ -212,6 +212,35 @@ async function initDB() {
   `);
 
   // =========================
+  // ASSET HANDOVERS (Surat Tanda Terima)
+  // =========================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS asset_handovers (
+      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+      handover_number VARCHAR(64) NOT NULL,
+      asset_id BIGINT UNSIGNED NOT NULL,
+
+      handover_date DATE NOT NULL,
+      receiver_name VARCHAR(150) NOT NULL,
+      receiver_division VARCHAR(150) NOT NULL,
+      receiver_phone VARCHAR(50) NOT NULL,
+
+      handed_over_by VARCHAR(100) NULL,
+      gen_month TINYINT UNSIGNED NOT NULL,
+      gen_year SMALLINT UNSIGNED NOT NULL,
+      seq_no INT UNSIGNED NOT NULL,
+
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      PRIMARY KEY (id),
+      UNIQUE KEY uq_handover_number (handover_number),
+      KEY idx_handover_asset (asset_id),
+      KEY idx_handover_period (gen_year, gen_month),
+      CONSTRAINT fk_handover_asset FOREIGN KEY (asset_id) REFERENCES assets(id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `);
+
+  // =========================
   // INVENTORY ITEMS
   // =========================
   await pool.query(`
@@ -391,6 +420,9 @@ async function initDB() {
   await safeAlter(
     `ALTER TABLE assets ADD COLUMN ck_usb_hub TINYINT(1) NOT NULL DEFAULT 0 AFTER ck_keyboard`
   );
+  await safeAlter(
+    `ALTER TABLE assets ADD COLUMN ck_charger TINYINT(1) NOT NULL DEFAULT 0 AFTER ck_usb_hub`
+  );
 
   // Idempotent upgrades (toner)
   await safeAlter(
@@ -461,7 +493,7 @@ await safeAlter(
 
       action ENUM(
         'ASSET_CREATE','ASSET_UPDATE','ASSET_DELETE',
-        'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH',
+        'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH','ASSET_HANDOVER',
         'INV_CREATE','INV_UPDATE','INV_DELETE','INV_MOVE',
         'USER_CREATE','USER_UPDATE','USER_DELETE',
         'TONER_CREATE','TONER_UPDATE','TONER_DELETE','TONER_MOVE'
@@ -486,7 +518,7 @@ await safeAlter(
   await safeAlter(`
     ALTER TABLE activity_logs MODIFY COLUMN action ENUM(
       'ASSET_CREATE','ASSET_UPDATE','ASSET_DELETE',
-      'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH',
+      'ASSET_RETIRE','ASSET_TRASH_UPDATE','ASSET_RESTORE_FROM_TRASH','ASSET_HANDOVER',
       'INV_CREATE','INV_UPDATE','INV_DELETE','INV_MOVE',
       'USER_CREATE','USER_UPDATE','USER_DELETE',
       'TONER_CREATE','TONER_UPDATE','TONER_DELETE','TONER_MOVE'
@@ -894,6 +926,7 @@ app.get("/api/dashboard/summary", authenticate, async (req, res) => {
               ck_tas AS ckTas,
               ck_keyboard AS ckKeyboard,
               ck_usb_hub AS ckUsbHub,
+              ck_charger AS ckCharger,
               monitor_type AS monitorType,
               storage_type AS storageType,
               created_at AS createdAt,
@@ -1155,7 +1188,7 @@ app.get("/api/assets", authenticate, async (req, res) => {
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
     const [rows] = await pool.query(
-            `SELECT id,
+            `SELECT assets.id,
               asset_tag AS assetTag,
               name,
               type,
@@ -1177,17 +1210,33 @@ app.get("/api/assets", authenticate, async (req, res) => {
               ck_tas AS ckTas,
               ck_keyboard AS ckKeyboard,
               ck_usb_hub AS ckUsbHub,
+              ck_charger AS ckCharger,
               monitor_type AS monitorType,
               storage_type AS storageType,
               created_by AS createdBy,     
               updated_by AS updatedBy,     
-              created_at AS createdAt,
-              updated_at AS updatedAt,
+              assets.created_at AS createdAt,
+              assets.updated_at AS updatedAt,
               is_active AS isActive,
               disabled_at AS disabledAt,
               disabled_by AS disabledBy,
-              disabled_reason AS disabledReason
+              disabled_reason AS disabledReason,
+              lh.handover_number AS lastHandoverNumber,
+              lh.handover_date AS lastHandoverDate,
+              lh.receiver_name AS lastHandoverReceiverName,
+              lh.receiver_division AS lastHandoverReceiverDivision,
+              lh.receiver_phone AS lastHandoverReceiverPhone,
+              lh.handed_over_by AS lastHandoverBy
        FROM assets
+       LEFT JOIN (
+         SELECT ah1.*
+         FROM asset_handovers ah1
+         INNER JOIN (
+           SELECT asset_id, MAX(created_at) AS max_created
+           FROM asset_handovers
+           GROUP BY asset_id
+         ) latest ON latest.asset_id = ah1.asset_id AND latest.max_created = ah1.created_at
+       ) lh ON lh.asset_id = assets.id
        ${whereSql}
        ORDER BY updated_at DESC, id DESC`,
       params
@@ -1225,6 +1274,7 @@ app.post("/api/assets", authenticate, adminOnly, async (req, res) => {
       ckTas,
       ckKeyboard,
       ckUsbHub,
+      ckCharger,
       monitorType,
       storageType,
     } = req.body || {};
@@ -1249,11 +1299,11 @@ app.post("/api/assets", authenticate, adminOnly, async (req, res) => {
          assigned_to, location,
          purchase_date, warranty_end, notes,
          cpu_spec, ram_spec, hdd_spec, vga_card,
-         ck_usb_lan, ck_mouse, ck_tas, ck_keyboard, ck_usb_hub,
+         ck_usb_lan, ck_mouse, ck_tas, ck_keyboard, ck_usb_hub, ck_charger,
          monitor_type, storage_type,
          created_by
        )
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         finalAssetTag,
         String(name),
@@ -1276,6 +1326,7 @@ app.post("/api/assets", authenticate, adminOnly, async (req, res) => {
         ckTas ? 1 : 0,
         ckKeyboard ? 1 : 0,
         ckUsbHub ? 1 : 0,
+        ckCharger ? 1 : 0,
         monitorType ?? null,
         storageType ?? null,
         req.user?.username || null,
@@ -1368,6 +1419,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
          ck_tas,
          ck_keyboard,
          ck_usb_hub,
+         ck_charger,
          monitor_type,
          storage_type
        FROM assets
@@ -1382,6 +1434,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
     const ckTas = payload.ckTas === undefined ? null : (payload.ckTas ? 1 : 0);
     const ckKeyboard = payload.ckKeyboard === undefined ? null : (payload.ckKeyboard ? 1 : 0);
     const ckUsbHub = payload.ckUsbHub === undefined ? null : (payload.ckUsbHub ? 1 : 0);
+    const ckCharger = payload.ckCharger === undefined ? null : (payload.ckCharger ? 1 : 0);
 
     await pool.query(
       `UPDATE assets SET
@@ -1406,6 +1459,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
          ck_tas        = COALESCE(?, ck_tas),
          ck_keyboard   = COALESCE(?, ck_keyboard),
          ck_usb_hub    = COALESCE(?, ck_usb_hub),
+         ck_charger    = COALESCE(?, ck_charger),
          monitor_type  = COALESCE(?, monitor_type),
          storage_type  = COALESCE(?, storage_type),
          updated_by    = ?
@@ -1432,6 +1486,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
         ckTas,
         ckKeyboard,
         ckUsbHub,
+        ckCharger,
         payload.monitorType ?? null,
         payload.storageType ?? null,
         req.user?.username || null,
@@ -1463,6 +1518,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
          ck_tas,
          ck_keyboard,
          ck_usb_hub,
+         ck_charger,
          monitor_type,
          storage_type
        FROM assets
@@ -1497,6 +1553,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
             ckTas: Boolean(beforeRow.ck_tas),
             ckKeyboard: Boolean(beforeRow.ck_keyboard),
             ckUsbHub: Boolean(beforeRow.ck_usb_hub),
+            ckCharger: Boolean(beforeRow.ck_charger),
             monitorType: beforeRow.monitor_type,
             storageType: beforeRow.storage_type,
           }
@@ -1525,6 +1582,7 @@ app.put("/api/assets/:id", authenticate, adminOnly, async (req, res) => {
             ckTas: Boolean(afterRow.ck_tas),
             ckKeyboard: Boolean(afterRow.ck_keyboard),
             ckUsbHub: Boolean(afterRow.ck_usb_hub),
+            ckCharger: Boolean(afterRow.ck_charger),
             monitorType: afterRow.monitor_type,
             storageType: afterRow.storage_type,
           }
@@ -3464,6 +3522,158 @@ if (STORAGE_ENABLED) {
     }
   });
 }
+
+// =======================================================
+// ASSET HANDOVER (Surat Tanda Terima Asset)
+// =======================================================
+// Ambil handover TERAKHIR untuk 1 asset (buat cek "sudah pernah diserah-terima
+// kan belum" dan buat reprint tanpa generate nomor baru)
+app.get("/api/assets/:id/handover/latest", authenticate, async (req, res) => {
+  try {
+    const assetId = Number(req.params.id);
+    if (!Number.isFinite(assetId)) return res.status(400).json({ error: "invalid id" });
+
+    const [rows] = await pool.query(
+      `SELECT
+         ah.id, ah.handover_number AS handoverNumber, ah.handover_date AS handoverDate,
+         ah.receiver_name AS receiverName, ah.receiver_division AS receiverDivision,
+         ah.receiver_phone AS receiverPhone, ah.handed_over_by AS handedOverBy,
+         a.id AS assetIdRaw, a.asset_tag AS assetTag, a.name, a.type, a.brand, a.model, a.serial_number AS serialNumber, a.status,
+         a.ck_usb_lan AS ckUsbLan, a.ck_mouse AS ckMouse, a.ck_tas AS ckTas, a.ck_keyboard AS ckKeyboard,
+         a.ck_usb_hub AS ckUsbHub, a.ck_charger AS ckCharger,
+         a.cpu_spec AS cpuSpec, a.ram_spec AS ramSpec, a.hdd_spec AS hddSpec, a.vga_card AS vgaCard, a.monitor_type AS monitorType
+       FROM asset_handovers ah
+       JOIN assets a ON a.id = ah.asset_id
+       WHERE ah.asset_id = ?
+       ORDER BY ah.created_at DESC
+       LIMIT 1`,
+      [assetId]
+    );
+
+    const row = rows?.[0];
+    if (!row) return res.status(404).json({ error: "not found" });
+
+    res.json({
+      id: String(row.id),
+      handoverNumber: row.handoverNumber,
+      handoverDate: row.handoverDate,
+      receiverName: row.receiverName,
+      receiverDivision: row.receiverDivision,
+      receiverPhone: row.receiverPhone,
+      handedOverBy: row.handedOverBy,
+      asset: {
+        id: String(row.assetIdRaw),
+        assetTag: row.assetTag,
+        name: row.name,
+        type: row.type,
+        brand: row.brand,
+        model: row.model,
+        serialNumber: row.serialNumber,
+        status: row.status,
+        ckUsbLan: row.ckUsbLan,
+        ckMouse: row.ckMouse,
+        ckTas: row.ckTas,
+        ckKeyboard: row.ckKeyboard,
+        ckUsbHub: row.ckUsbHub,
+        ckCharger: row.ckCharger,
+        cpuSpec: row.cpuSpec,
+        ramSpec: row.ramSpec,
+        hddSpec: row.hddSpec,
+        vgaCard: row.vgaCard,
+        monitorType: row.monitorType,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load handover" });
+  }
+});
+
+app.post("/api/assets/:id/handover", authenticate, adminOnly, async (req, res) => {
+  const conn = await pool.getConnection();
+  try {
+    const assetId = Number(req.params.id);
+    const { receiverName, receiverDivision, receiverPhone, handoverDate } = req.body || {};
+
+    if (!Number.isFinite(assetId)) return res.status(400).json({ error: "invalid id" });
+    if (!receiverName || !String(receiverName).trim()) return res.status(400).json({ error: "Nama penerima wajib diisi" });
+    if (!receiverDivision || !String(receiverDivision).trim()) return res.status(400).json({ error: "Divisi penerima wajib diisi" });
+    if (!receiverPhone || !String(receiverPhone).trim()) return res.status(400).json({ error: "No WA penerima wajib diisi" });
+
+    const [assetRows] = await pool.query(
+      `SELECT id, asset_tag AS assetTag, name, type, brand, model, serial_number AS serialNumber, status,
+              ck_usb_lan AS ckUsbLan, ck_mouse AS ckMouse, ck_tas AS ckTas, ck_keyboard AS ckKeyboard,
+              ck_usb_hub AS ckUsbHub, ck_charger AS ckCharger,
+              cpu_spec AS cpuSpec, ram_spec AS ramSpec, hdd_spec AS hddSpec, vga_card AS vgaCard, monitor_type AS monitorType
+       FROM assets WHERE id = ?`,
+      [assetId]
+    );
+    const asset = assetRows?.[0];
+    if (!asset) return res.status(404).json({ error: "Asset tidak ditemukan" });
+
+    const now = new Date();
+    const genMonth = now.getMonth() + 1;
+    const genYear = now.getFullYear();
+    const finalDate = (handoverDate && String(handoverDate).trim()) || now.toISOString().slice(0, 10);
+
+    await conn.beginTransaction();
+
+    const [countRows] = await conn.query(
+      `SELECT COUNT(*) AS cnt FROM asset_handovers WHERE gen_year = ? AND gen_month = ? FOR UPDATE`,
+      [genYear, genMonth]
+    );
+    const seqNo = (Number(countRows?.[0]?.cnt) || 0) + 1;
+
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const pad4 = (n) => String(n).padStart(4, "0");
+    const handoverNumber = `ST/CJI/IT/${pad2(genMonth)}/${genYear}/${pad4(seqNo)}`;
+
+    const [ins] = await conn.query(
+      `INSERT INTO asset_handovers
+         (handover_number, asset_id, handover_date, receiver_name, receiver_division, receiver_phone, handed_over_by, gen_month, gen_year, seq_no)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        handoverNumber,
+        assetId,
+        finalDate,
+        String(receiverName).trim().toUpperCase(),
+        String(receiverDivision).trim().toUpperCase(),
+        String(receiverPhone).trim(),
+        req.user?.username || null,
+        genMonth,
+        genYear,
+        seqNo,
+      ]
+    );
+
+    await conn.commit();
+
+    await logActivity({
+      req,
+      action: "ASSET_HANDOVER",
+      entityType: "ASSET",
+      entityId: assetId,
+      meta: { handoverNumber, receiverName, receiverDivision, receiverPhone },
+    });
+
+    res.json({
+      id: String(ins.insertId),
+      handoverNumber,
+      handoverDate: finalDate,
+      receiverName: String(receiverName).trim().toUpperCase(),
+      receiverDivision: String(receiverDivision).trim().toUpperCase(),
+      receiverPhone: String(receiverPhone).trim(),
+      handedOverBy: req.user?.username || "-",
+      asset,
+    });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ error: "Failed to create handover" });
+  } finally {
+    conn.release();
+  }
+});
 
 // =======================================================
 // SERVER

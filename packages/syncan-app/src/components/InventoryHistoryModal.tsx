@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import ExcelJS from "exceljs";
 import {
   fetchInventoryMovements,
   fetchInventoryActivity,
@@ -436,6 +437,109 @@ function renderActivityDetail(action: string, meta: any) {
   );
 }
 
+// Versi teks polos dari renderActivityDetail, dipakai untuk export Excel
+// (satu sel tidak bisa isi JSX, jadi baris di-gabung pakai " | ")
+function activityDetailToText(action: string, meta: any): string {
+  if (!meta) return "-";
+
+  let m: any = meta;
+  if (typeof meta === "string") {
+    try {
+      m = JSON.parse(meta);
+    } catch {
+      return String(meta);
+    }
+  }
+
+  const cleanValue = (v: any) => {
+    if (v === undefined || v === null || v === "") return "-";
+    return String(v);
+  };
+
+  if (action === "INV_CREATE") {
+    let sku = m.sku;
+    let name = m.name;
+    if (m.after && typeof m.after === "object") {
+      sku = m.after.sku || sku;
+      name = m.after.name || name;
+    }
+    return [
+      `SKU: ${cleanValue(sku)}`,
+      `Name: ${cleanValue(name)}`,
+      `Category: ${cleanValue(m.category || m.after?.category)}`,
+      `Stock: ${cleanValue(m.stock || m.after?.stock)}`,
+      `Location: ${cleanValue(m.location || m.after?.location)}`,
+      `Capacity: ${cleanValue(m.capacity || m.after?.capacity)}`,
+    ].join(" | ");
+  }
+
+  if (action === "INV_UPDATE") {
+    const restoredFlag =
+      m?.restored === true ||
+      m?.restored === "true" ||
+      (m?.after && (m.after.restored === true || m.after.restored === "true"));
+    if (restoredFlag) return "Action: RESTORE (aktifkan kembali inventory)";
+
+    const hasBefore = m && typeof m === "object" && m.before && m.after;
+    const before = hasBefore ? (m.before as any) : null;
+    const after = hasBefore ? (m.after as any) : m;
+
+    const fields: { key: string; label: string }[] = [
+      { key: "sku", label: "SKU" },
+      { key: "name", label: "Name" },
+      { key: "category", label: "Category" },
+      { key: "unit", label: "Unit" },
+      { key: "location", label: "Location" },
+      { key: "capacity", label: "Capacity" },
+      { key: "stock", label: "Stock" },
+      { key: "minStock", label: "Min Stock" },
+      { key: "notes", label: "Notes" },
+    ];
+
+    const parts: string[] = [];
+    for (const f of fields) {
+      const rawOld = before ? before[f.key] : undefined;
+      const rawNew = after ? after[f.key] : undefined;
+      const oldStr = rawOld === undefined || rawOld === null ? "" : String(rawOld).trim();
+      const newStr = rawNew === undefined || rawNew === null ? "" : String(rawNew).trim();
+
+      if (hasBefore) {
+        if (oldStr === newStr) continue;
+      } else if (!newStr) continue;
+
+      parts.push(hasBefore ? `${f.label}: ${oldStr || "-"} -> ${newStr || "-"}` : `${f.label}: ${newStr || "-"}`);
+    }
+
+    if (!parts.length) return "-";
+    return parts.join(" | ");
+  }
+
+  if (action === "INV_MOVE") {
+    const parts = [`Type: ${m.type ?? "-"}`, `Qty: ${m.qty ?? "-"}`, `Ref: ${m.ref && String(m.ref).trim() ? m.ref : "-"}`];
+    if ((m.targetAssetId ?? null) !== null) parts.push(`Target Asset ID: ${m.targetAssetId}`);
+    if (m.type === "IN") {
+      parts.push(`Purchase Date: ${m.purchaseDate || "-"}`);
+      parts.push(`Purchase Location: ${m.purchaseLocation || "-"}`);
+    }
+    if (m.type === "OUT") parts.push(`Destination: ${m.destination || "-"}`);
+    return parts.join(" | ");
+  }
+
+  if (action === "INV_DELETE") {
+    const soft = m.soft === true;
+    const reason = m.reason;
+    const parts = [`Soft delete: ${soft ? "YES" : "NO"}`];
+    if (reason) parts.push(`Reason: ${reason}`);
+    return parts.join(" | ");
+  }
+
+  try {
+    return JSON.stringify(m);
+  } catch {
+    return "-";
+  }
+}
+
 function fmtDateOnly(d?: string | null) {
   if (!d) return "-";
   // ambil YYYY-MM-DD saja, aman untuk ISO / DATE
@@ -682,6 +786,153 @@ export default function InventoryHistoryModal({
     return logsSorted.slice(start, start + pageSize);
   }, [logsSorted, activityPageSafe]);
 
+  async function downloadWorkbook(wb: ExcelJS.Workbook, filename: string) {
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Tone warna badge, sama persis dengan Pill yang tampil di layar
+  const TYPE_TONE: Record<string, { bg: string; fg: string; bd: string }> = {
+    IN: { bg: "FFECFDF5", fg: "FF047857", bd: "FFA7F3D0" },
+    OUT: { bg: "FFEFF6FF", fg: "FF1D4ED8", bd: "FFBFDBFE" },
+    ADJUST: { bg: "FFFFFBEB", fg: "FFB45309", bd: "FFFDE68A" },
+  };
+
+  const HEADER_FILL = "FFEFF6FF";
+  const HEADER_TEXT = "FF0F172A";
+  const ROW_ALT_FILL = "FFF8FAFC";
+  const BORDER_COLOR = "FFE2E8F0";
+
+  function styleHeaderRow(row: ExcelJS.Row) {
+    row.eachCell((cell) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: HEADER_FILL } };
+      cell.font = { bold: true, color: { argb: HEADER_TEXT }, size: 11 };
+      cell.alignment = { vertical: "middle", horizontal: "left" };
+      cell.border = { bottom: { style: "thin", color: { argb: BORDER_COLOR } } };
+    });
+    row.height = 22;
+  }
+
+  function styleBodyRow(row: ExcelJS.Row, idx: number) {
+    row.eachCell((cell) => {
+      if (idx % 2 === 1) {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ROW_ALT_FILL } };
+      }
+      cell.border = { bottom: { style: "thin", color: { argb: BORDER_COLOR } } };
+      cell.alignment = { vertical: "middle" };
+      cell.font = { ...(cell.font || {}), bold: false };
+    });
+  }
+
+  async function exportMovementsToExcel() {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Movements");
+
+    ws.columns = [
+      { header: "Date", key: "date", width: 20 },
+      { header: "Type", key: "type", width: 10 },
+      { header: "Qty", key: "qty", width: 8 },
+      { header: "Ref", key: "ref", width: 18 },
+      { header: "Purchase", key: "purchase", width: 22 },
+      { header: "Destination", key: "destination", width: 20 },
+      { header: "User", key: "user", width: 14 },
+      { header: "Asset", key: "asset", width: 26 },
+    ];
+
+    styleHeaderRow(ws.getRow(1));
+
+    movementsSorted.forEach((m, idx) => {
+      const purchase = m.purchaseDate
+        ? `${fmtDateOnly(m.purchaseDate)}${m.purchaseLocation ? ` - ${m.purchaseLocation}` : ""}`
+        : "-";
+
+      const row = ws.addRow({
+        date: new Date(m.createdAt).toLocaleString(),
+        type: m.type,
+        qty: m.qty,
+        ref: m.ref && String(m.ref).trim() ? m.ref : "-",
+        purchase,
+        destination: m.type === "OUT" ? m.destination || "-" : "-",
+        user: m.createdBy || "-",
+        asset: m.targetAssetTag ? `${m.targetAssetTag} - ${m.targetAssetName || ""}` : m.targetAssetId || "-",
+      });
+
+      styleBodyRow(row, idx);
+
+      // Bold di kolom Date & Qty, badge warna di kolom Type
+      row.getCell("date").font = { bold: true, color: { argb: "FF334155" } };
+      row.getCell("qty").font = { bold: true, color: { argb: "FF0F172A" } };
+
+      const tone = TYPE_TONE[m.type] || TYPE_TONE.OUT;
+      const typeCell = row.getCell("type");
+      typeCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: tone.bg } };
+      typeCell.font = { bold: true, color: { argb: tone.fg } };
+      typeCell.alignment = { vertical: "middle", horizontal: "center" };
+      typeCell.border = {
+        top: { style: "thin", color: { argb: tone.bd } },
+        bottom: { style: "thin", color: { argb: tone.bd } },
+        left: { style: "thin", color: { argb: tone.bd } },
+        right: { style: "thin", color: { argb: tone.bd } },
+      };
+    });
+
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    await downloadWorkbook(wb, `Movements_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
+  }
+
+  async function exportActivityToExcel() {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Activity");
+
+    ws.columns = [
+      { header: "Date", key: "date", width: 20 },
+      { header: "Action", key: "action", width: 18 },
+      { header: "User", key: "user", width: 14 },
+      { header: "Detail", key: "detail", width: 70 },
+    ];
+
+    styleHeaderRow(ws.getRow(1));
+
+    logsSorted.forEach((l, idx) => {
+      const row = ws.addRow({
+        date: new Date(l.createdAt).toLocaleString(),
+        action: l.action,
+        user: l.actorUsername || "-",
+        detail: activityDetailToText(l.action, l.meta),
+      });
+
+      styleBodyRow(row, idx);
+
+      row.getCell("date").font = { bold: true, color: { argb: "FF334155" } };
+
+      const actionCell = row.getCell("action");
+      actionCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF8FAFC" } };
+      actionCell.font = { bold: true, color: { argb: "FF475569" } };
+      actionCell.alignment = { vertical: "middle", horizontal: "center" };
+      actionCell.border = {
+        top: { style: "thin", color: { argb: "FFE2E8F0" } },
+        bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+        left: { style: "thin", color: { argb: "FFE2E8F0" } },
+        right: { style: "thin", color: { argb: "FFE2E8F0" } },
+      };
+
+      row.getCell("detail").alignment = { vertical: "middle", wrapText: true };
+    });
+
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    await downloadWorkbook(wb, `Activity_${(itemName || "Inventory").replace(/[^a-zA-Z0-9]+/g, "_")}.xlsx`);
+  }
+
   // kalau data berubah, pastiin page tidak out-of-range
   useEffect(() => {
     if (movementPage > movementTotalPages) setMovementPage(movementTotalPages);
@@ -775,12 +1026,22 @@ export default function InventoryHistoryModal({
             />
           </div>
 
-          <div style={{ color: "var(--hm-muted)", fontWeight: 900, fontSize: 12 }}>
-            {loading
-              ? "Loading..."
-              : tab === "movements"
-                ? `Stock Movements • Page ${movementPageSafe}/${movementTotalPages}`
-                : `Activity Log • Page ${activityPageSafe}/${activityTotalPages}`}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            {!loading ? (
+              <ActionButton
+                label="Export Excel"
+                disabled={tab === "movements" ? movementsSorted.length === 0 : logsSorted.length === 0}
+                onClick={tab === "movements" ? exportMovementsToExcel : exportActivityToExcel}
+              />
+            ) : null}
+
+            <div style={{ color: "var(--hm-muted)", fontWeight: 900, fontSize: 12 }}>
+              {loading
+                ? "Loading..."
+                : tab === "movements"
+                  ? `Stock Movements • Page ${movementPageSafe}/${movementTotalPages}`
+                  : `Activity Log • Page ${activityPageSafe}/${activityTotalPages}`}
+            </div>
           </div>
         </div>
 

@@ -382,6 +382,17 @@ function renderDetail(log: any) {
       return <DetailGrid rows={rows} />;
     }
 
+    if (action === "ASSET_HANDOVER") {
+      const rows: Array<[string, any]> = [
+        ["Action", "Cetak Serah Terima"],
+      ];
+      if (m.handoverNumber) rows.push(["No. Serah Terima", String(m.handoverNumber)]);
+      if (m.receiverName) rows.push(["Penerima", String(m.receiverName)]);
+      if (m.receiverDivision) rows.push(["Divisi Penerima", String(m.receiverDivision)]);
+      if (m.receiverPhone) rows.push(["No. WA Penerima", String(m.receiverPhone)]);
+      return <DetailGrid rows={rows} />;
+    }
+
     // 2) AS _UPDATE khusus restore (meta: { restored: true })
     const restoredFlag =
       m.restored === true ||
@@ -471,6 +482,7 @@ function renderDetail(log: any) {
       addField("ckTas", "Tas", { checklist: true });
       addField("ckKeyboard", "Keyboard", { checklist: true });
       addField("ckUsbHub", "USB Hub", { checklist: true });
+      addField("ckCharger", "Charger", { checklist: true });
 
       if (!rows.length) {
         return (
