@@ -1260,7 +1260,7 @@ export default function AssetsPage() {
 <meta charset="UTF-8" />
 <title>${data.handoverNumber}</title>
 <style>
-  @page { size: 148mm 210mm; margin: 0; }
+  @page { size: 210mm 297mm; margin: 0; }
   * { box-sizing: border-box; }
   body { font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 12px; margin: 0; padding: 0; }
   .sheet { padding: 12mm 14mm; }
